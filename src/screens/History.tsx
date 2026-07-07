@@ -10,7 +10,8 @@ import {
 } from '../data/queries'
 import { update, useDb } from '../data/store'
 import type { Db, Exercise, InsightTarget, Session, SetLog } from '../data/types'
-import { newId } from '../data/types'
+import { exerciseType, newId } from '../data/types'
+import { fmtDur } from '../lib/format'
 
 /**
  * History (agent D) — recreated from design/prototypes/History.dc.html +
@@ -348,10 +349,14 @@ function SessionCard({
 
       {exercises.map((ex) => {
         const exercise = exerciseById(db, ex.exerciseId)
+        const type = exercise ? exerciseType(exercise) : 'weight'
         return (
           <div key={ex.exerciseId} className="flex flex-col gap-2">
             <div className="tt-label text-[11px] font-bold tracking-[0.06em] text-sec">
               {ex.exerciseName}
+              {exercise?.kind !== 'cardio' && type !== 'weight' && (
+                <span className="text-dim"> · {type === 'time' ? 'timed' : 'bodyweight'}</span>
+              )}
             </div>
             {exercise?.kind === 'cardio' ? (
               <div className="text-[12px] tracking-[0.02em] text-sec tabular-nums">
@@ -363,6 +368,7 @@ function SessionCard({
                 scrollKey={`${session.id}|${ex.exerciseId}`}
                 scroll={scroll}
                 setScroll={setScroll}
+                variant={type}
               />
             )}
           </div>
@@ -372,21 +378,79 @@ function SessionCard({
   )
 }
 
+type SetTableVariant = 'weight' | 'reps' | 'time'
+
+interface SetTableRow {
+  label: string
+  heightClass: string
+  valueClass: string
+  value: (l: SetLog) => number | string
+}
+
+/** Row-label gutter + per-set value rows, keyed by how the exercise is logged. */
+const SET_TABLE_ROWS: Record<SetTableVariant, SetTableRow[]> = {
+  weight: [
+    {
+      label: 'kg',
+      heightClass: 'h-[22px]',
+      valueClass: 'text-[13px] font-bold text-tx tabular-nums',
+      value: (l) => fmtKg(l.weightKg),
+    },
+    {
+      label: 'reps',
+      heightClass: 'h-[18px]',
+      valueClass: 'text-[12px] text-sec tabular-nums',
+      value: (l) => l.reps,
+    },
+    {
+      label: 'rir',
+      heightClass: 'h-[18px]',
+      valueClass: 'text-[12px] text-mut tabular-nums',
+      value: (l) => l.rir ?? '–',
+    },
+  ],
+  reps: [
+    {
+      label: 'reps',
+      heightClass: 'h-[22px]',
+      valueClass: 'text-[13px] font-bold text-tx tabular-nums',
+      value: (l) => l.reps,
+    },
+    {
+      label: 'rir',
+      heightClass: 'h-[18px]',
+      valueClass: 'text-[12px] text-mut tabular-nums',
+      value: (l) => l.rir ?? '–',
+    },
+  ],
+  time: [
+    {
+      label: 'time',
+      heightClass: 'h-[22px]',
+      valueClass: 'text-[13px] font-bold text-tx tabular-nums',
+      value: (l) => fmtDur(l.durSec ?? 0),
+    },
+  ],
+}
+
 function SetTable({
   logs,
   scrollKey,
   scroll,
   setScroll,
+  variant = 'weight',
 }: {
   logs: SetLog[]
   scrollKey: string
   scroll: Record<string, ScrollState>
   setScroll: (fn: (s: Record<string, ScrollState>) => Record<string, ScrollState>) => void
+  variant?: SetTableVariant
 }) {
   const st = scroll[scrollKey]
   // Initial guess: >5 columns overflow (56 px + gap ≈ 62 px, ~5.7 visible).
   const moreRight = st ? !st.atEnd : logs.length > 5
   const moreLeft = st ? st.scrolled : false
+  const rows = SET_TABLE_ROWS[variant]
 
   const onScroll = (e: UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget
@@ -403,15 +467,14 @@ function SetTable({
       {/* row-label gutter */}
       <div className="flex w-[38px] shrink-0 flex-col">
         <div className="h-[18px]" />
-        <div className="flex h-[22px] items-center text-[9px] tracking-[0.12em] text-dim uppercase">
-          kg
-        </div>
-        <div className="flex h-[18px] items-center text-[9px] tracking-[0.12em] text-dim uppercase">
-          reps
-        </div>
-        <div className="flex h-[18px] items-center text-[9px] tracking-[0.12em] text-dim uppercase">
-          rir
-        </div>
+        {rows.map((r) => (
+          <div
+            key={r.label}
+            className={`flex ${r.heightClass} items-center text-[9px] tracking-[0.12em] text-dim uppercase`}
+          >
+            {r.label}
+          </div>
+        ))}
       </div>
       <div onScroll={onScroll} className="flex-1 overflow-x-auto">
         <div className="flex min-w-max gap-[6px] pb-1">
@@ -420,13 +483,11 @@ function SetTable({
               <div className="flex h-[18px] items-center text-[9px] tracking-[0.1em] text-dim uppercase">
                 S{i + 1}
               </div>
-              <div className="flex h-[22px] items-center text-[13px] font-bold text-tx tabular-nums">
-                {fmtKg(l.weightKg)}
-              </div>
-              <div className="flex h-[18px] items-center text-[12px] text-sec tabular-nums">{l.reps}</div>
-              <div className="flex h-[18px] items-center text-[12px] text-mut tabular-nums">
-                {l.rir ?? '–'}
-              </div>
+              {rows.map((r) => (
+                <div key={r.label} className={`flex ${r.heightClass} items-center ${r.valueClass}`}>
+                  {r.value(l)}
+                </div>
+              ))}
             </div>
           ))}
         </div>

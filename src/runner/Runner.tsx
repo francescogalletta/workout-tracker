@@ -4,7 +4,7 @@ import { getDb, useDb } from '../data/store'
 import type { Session } from '../data/types'
 import { newId } from '../data/types'
 import { ensureAudio, restClick, restDone } from '../lib/audio'
-import { fmtClock, fmtMetricLine, fmtW } from '../lib/format'
+import { fmtClock, fmtDur, fmtMetricLine, fmtW } from '../lib/format'
 import { useWakeLock } from '../lib/useWakeLock'
 import { ActiveSetCard } from './components/ActiveSetCard'
 import { ExercisePicker, filterDb, type PickerFilter } from './components/ExercisePicker'
@@ -13,14 +13,26 @@ import {
   FinishConfirmSheet,
   KeypadSheet,
   ReorderSheet,
+  RestSessionSheet,
   StepChooserSheet,
   SwapConfirmSheet,
 } from './components/sheets'
 import { SummaryScreen } from './components/SummaryScreen'
+import { TypeBadge } from './components/TypeBadge'
 import { QuietLink } from './components/ui'
 import { restoreState, syncLoggedEdits, toPickerItem } from './fromStore'
-import { loggedWorkingSets, reduce } from './session'
+import { loggedWorkingSets, reduce, typeOf } from './session'
 import type { DbExercise, SessionExercise, SetEntry } from './types'
+
+/** In-memory hold-timer state for the active `time`-type set (§3.3). Not
+ * persisted or reducer-owned — reset whenever the pointer moves. */
+interface HoldState {
+  key: string
+  startedAt: number
+  accSec: number
+  running: boolean
+  overFired: boolean
+}
 
 interface KeypadState {
   field: 'weight' | 'reps'
@@ -69,6 +81,8 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
   const [finishConfirmOpen, setFinishConfirmOpen] = useState(false)
   const [stepOverride, setStepOverride] = useState<number | null>(null)
   const [stepChooserOpen, setStepChooserOpen] = useState(false)
+  const [restSheetOpen, setRestSheetOpen] = useState(false)
+  const [hold, setHold] = useState<HoldState | null>(null)
 
   const holdFired = useRef(false)
   const holdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -119,6 +133,39 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     }
   }, [ptr.e, ptr.s])
 
+  // Timed sets (§3.3): the hold timer is scoped to the pointed set — reset it
+  // whenever the pointer moves to a different set.
+  useEffect(() => {
+    setHold(null)
+  }, [ptr.e, ptr.s])
+
+  // Chime once the hold reaches its target; never auto-logs.
+  useEffect(() => {
+    if (!hold || !hold.running || hold.overFired) return
+    const target = cur?.durSec ?? 30
+    const elapsedNow = hold.accSec + (now - hold.startedAt) / 1000
+    if (elapsedNow >= target) {
+      if (settings.soundEnabled) restDone()
+      setHold((h) => (h ? { ...h, overFired: true } : h))
+    }
+  }, [now, hold, cur?.durSec, settings.soundEnabled])
+
+  const timerElapsed = hold ? hold.accSec + (hold.running ? (now - hold.startedAt) / 1000 : 0) : 0
+
+  const toggleTimer = () => {
+    if (!cur) return
+    if (!hold) {
+      ensureAudio()
+      setHold({ key: `${ptr.e}:${ptr.s}`, startedAt: Date.now(), accSec: 0, running: true, overFired: false })
+      return
+    }
+    if (hold.running) {
+      setHold({ ...hold, accSec: hold.accSec + (Date.now() - hold.startedAt) / 1000, running: false })
+    } else {
+      setHold({ ...hold, startedAt: Date.now(), running: true })
+    }
+  }
+
   const holdStart = () => {
     holdFired.current = false
     clearTimeout(holdTimer.current)
@@ -145,11 +192,23 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
   const logActive = () => {
     ensureAudio()
     if (!cur || !curEx) return
-    if (curEx.kind === 'strength' && cur.weight === null) {
+    const curType = typeOf(curEx)
+    if (curEx.kind === 'strength' && curType === 'weight' && cur.weight === null) {
       openKeypad('weight')
       return
     }
     lastClickSecond.current = null
+
+    const isTimed = curEx.kind === 'strength' && curType === 'time'
+    const durSec = isTimed
+      ? hold
+        ? Math.max(1, Math.round(timerElapsed))
+        : (cur.durSec ?? 30)
+      : undefined
+    const logWeight = isTimed || (curEx.kind === 'strength' && curType === 'reps') ? 0 : (cur.weight ?? 0)
+    const logReps = isTimed ? 0 : cur.reps
+    const logRir = isTimed ? null : cur.rir
+
     let logId: string | undefined
     if (!cur.logged && !cur.logId) {
       // Write the SetLog immediately — history sees it live.
@@ -163,14 +222,16 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
         exerciseName: curEx.name,
         setNumber,
         isWarmup: cur.isWarmup,
-        weightKg: cur.weight ?? 0,
-        reps: cur.reps,
-        rir: cur.rir,
+        weightKg: logWeight,
+        reps: logReps,
+        rir: logRir,
+        durSec,
         values: cur.values ? { ...cur.values } : null,
         completedAt: Date.now(),
       })
     }
-    dispatch({ type: 'log', now: Date.now(), settings, logId })
+    dispatch({ type: 'log', now: Date.now(), settings, logId, durSec })
+    if (isTimed) setHold(null)
   }
 
   const keypadCurrent = !keypad || !cur
@@ -265,6 +326,8 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     const workIdx = arr.slice(0, s + 1).filter((x) => !x.isWarmup).length
     const workTot = arr.filter((x) => !x.isWarmup).length
 
+    const type = typeOf(ex)
+
     if (isActive) {
       const setLabel =
         ex.kind === 'cardio'
@@ -273,7 +336,9 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
             ? e === 0
               ? ex.name
               : 'Warm-up'
-            : `Set ${workIdx} of ${workTot}`
+            : type === 'time'
+              ? `Set ${workIdx} of ${workTot} · target ${fmtDur(sd.durSec ?? 30)}`
+              : `Set ${workIdx} of ${workTot}`
       return (
         <ActiveSetCard
           key={s}
@@ -294,14 +359,32 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
           onSelectRir={(value) => dispatch({ type: 'selectRir', value })}
           onStepMetric={(key, dir) => dispatch({ type: 'stepMetric', key, dir })}
           onDismissPlateau={() => dispatch({ type: 'dismissPlateau', exIdx: e })}
+          onStepDur={(dir) => dispatch({ type: 'stepDur', dir })}
+          onToggleTimer={toggleTimer}
+          timerElapsed={timerElapsed}
+          timerRunning={!!hold?.running}
+          timerStarted={!!hold}
         />
       )
     }
 
     const prefix = sd.isWarmup ? (e === 0 ? `${ex.name} · ` : '') : `Set ${workIdx}   `
+    const dotPrefix = sd.isWarmup ? (e === 0 ? `${ex.name} · ` : '') : `Set ${workIdx} · `
     let text: string
     if (ex.kind === 'cardio') {
       text = fmtMetricLine(ex.metrics ?? [], sd.values ?? {})
+    } else if (type === 'reps') {
+      const rirTxt = sd.logged
+        ? sd.rir !== null
+          ? ` · RIR ${sd.rir}`
+          : ''
+        : sd.isWarmup
+          ? ''
+          : ` · target RIR ${ex.targetRir}`
+      text = `${dotPrefix}${sd.reps} reps${rirTxt}`
+    } else if (type === 'time') {
+      const dur = fmtDur(sd.durSec ?? null)
+      text = sd.logged ? `${dotPrefix}${dur}` : `${dotPrefix}${dur} target`
     } else if (sd.logged) {
       text = `${prefix}${fmtW(sd.weight)} kg × ${sd.reps}${sd.rir !== null ? `   RIR ${sd.rir}` : ''}`
     } else {
@@ -346,11 +429,14 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     !keypad &&
     !reorderOpen &&
     !finishConfirmOpen &&
+    !restSheetOpen &&
     !!cur &&
     !cur.logged
   let barLabel = ''
   if (barVisible && cur && curEx) {
+    const curType = typeOf(curEx)
     if (curEx.kind === 'cardio') barLabel = 'Log cardio'
+    else if (curType === 'time' && hold) barLabel = `Stop · log ${fmtDur(timerElapsed)}`
     else if (cur.isWarmup) barLabel = 'Log warm-up'
     else {
       const arr = state.sets[ptr.e]
@@ -362,6 +448,7 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
 
   const workingLogged = loggedWorkingSets(state).length
   const elapsed = fmtClock((state.finishedAt ?? now) - state.startedAt)
+  const sessionRestValue = state.sessionRest ?? settings.defaultRestSec
   const targetMuscle =
     picker?.mode === 'swap' && picker.exIdx != null ? state.exercises[picker.exIdx].muscle : ''
   const pickerDb = db.exercises.map(toPickerItem)
@@ -383,6 +470,12 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
             {session.routineName}
           </div>
           <div className="flex items-baseline gap-4">
+            <button
+              onClick={() => setRestSheetOpen(true)}
+              className="cursor-pointer rounded-full border border-bds bg-transparent px-2.5 py-1 font-mono text-[11px] text-mut"
+            >
+              Rest {sessionRestValue}s
+            </button>
             <div className="text-[13px] text-mut tabular-nums">{elapsed}</div>
             <QuietLink
               label="Order"
@@ -408,20 +501,25 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
                 {sec.scheme && <div className="text-[11px] text-dim">{sec.scheme}</div>}
               </div>
               {sec.exIdx !== null && (
-                <QuietLink
-                  label="Swap"
-                  onClick={() => {
-                    const ex = state.exercises[sec.exIdx!]
-                    setPicker({
-                      mode: 'swap',
-                      exIdx: sec.exIdx,
-                      query: '',
-                      group: ex.group || 'all',
-                      equip: 'all',
-                    })
-                  }}
-                  className="text-[11px] text-dim"
-                />
+                <div className="flex items-center gap-2">
+                  {state.exercises[sec.exIdx].kind !== 'cardio' && (
+                    <TypeBadge type={typeOf(state.exercises[sec.exIdx])} />
+                  )}
+                  <QuietLink
+                    label="Swap"
+                    onClick={() => {
+                      const ex = state.exercises[sec.exIdx!]
+                      setPicker({
+                        mode: 'swap',
+                        exIdx: sec.exIdx,
+                        query: '',
+                        group: ex.group || 'all',
+                        equip: 'all',
+                      })
+                    }}
+                    className="text-[11px] text-dim"
+                  />
+                </div>
               )}
             </div>
             {sec.rows.map((row, ri) =>
@@ -544,6 +642,17 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
             setStepChooserOpen(false)
           }}
           onClose={() => setStepChooserOpen(false)}
+        />
+      )}
+
+      {restSheetOpen && (
+        <RestSessionSheet
+          current={sessionRestValue}
+          onPick={(sec) => {
+            dispatch({ type: 'setSessionRest', sec })
+            setRestSheetOpen(false)
+          }}
+          onClose={() => setRestSheetOpen(false)}
         />
       )}
 

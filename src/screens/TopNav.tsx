@@ -16,16 +16,17 @@ import { navigate, type Route } from '../router'
 type NavKey = 'home' | 'routines' | 'history' | 'settings'
 
 const LINKS: ReadonlyArray<readonly [label: string, path: string, key: NavKey]> = [
-  ['Home', '/', 'home'],
+  ['Workout', '/', 'home'],
   ['Routines', '/routines', 'routines'],
   ['History', '/history', 'history'],
   ['Settings', '/settings', 'settings'],
 ] as const
 
-/** Route → active nav key. RoutineEditor maps onto Routines. */
+/** Route → active nav key. RoutineEditor maps onto Routines; run onto Workout. */
 export function activeNavKey(route: Route['name']): NavKey | null {
   switch (route) {
     case 'home':
+    case 'run':
       return 'home'
     case 'routines':
     case 'routineEditor':
@@ -35,13 +36,18 @@ export function activeNavKey(route: Route['name']): NavKey | null {
     case 'settings':
       return 'settings'
     default:
-      return null // run, signin — nav is chrome-free / focused
+      return null // signin — chrome-free / focused
   }
 }
 
-/** Whether the persistent nav shows for a route (hidden on run + signin). */
+/**
+ * Whether the persistent nav shows for a route. Kept visible during a workout
+ * (#/run) so you can jump between sections at any time (item 5); only Sign In
+ * stays chrome-free. Runner overlays (rest/picker/summary) sit at z ≥ 40 and
+ * cover the nav (z-20) while active.
+ */
 export function showTopNav(route: Route['name']): boolean {
-  return route !== 'run' && route !== 'signin'
+  return route !== 'signin'
 }
 
 export function TopNav({ route }: { route: Route['name'] }) {

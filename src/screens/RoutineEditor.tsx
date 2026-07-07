@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react'
 import { exerciseById, itemsForRoutine, rotationRoutines, routineById } from '../data/queries'
 import { update, useDb } from '../data/store'
-import type { Db, RoutineItem } from '../data/types'
-import { newId } from '../data/types'
+import type { Db, ExerciseType, RoutineItem } from '../data/types'
+import {
+  DUR_MIN,
+  DUR_STEP,
+  MAX_ROUTINE_NAME_LEN,
+  TYPE_DEFAULTS,
+  exerciseType,
+  newId,
+} from '../data/types'
+import { fmtDur } from '../lib/format'
 import { navigate } from '../router'
 import {
   ExercisePicker,
@@ -11,6 +19,8 @@ import {
 } from '../runner/components/ExercisePicker'
 import { toPickerItem } from '../runner/fromStore'
 import { AccentButton, OutlineButton, Sheet } from '../runner/components/ui'
+import { RirScale } from '../runner/components/RirScale'
+import { TypeBadge } from '../runner/components/TypeBadge'
 import { addToRotation, removeFromRotation } from './routineOps'
 
 /**
@@ -29,7 +39,9 @@ function clamp(v: number, lo: number, hi: number): number {
 export function setRoutineName(db: Db, routineId: string, name: string): Db {
   return {
     ...db,
-    routines: db.routines.map((r) => (r.id === routineId ? { ...r, name } : r)),
+    routines: db.routines.map((r) =>
+      r.id === routineId ? { ...r, name: name.slice(0, MAX_ROUTINE_NAME_LEN) } : r,
+    ),
   }
 }
 
@@ -72,6 +84,18 @@ export function setItemRir(db: Db, itemId: string, rir: number): Db {
   }
 }
 
+/** Step a `time` item's target hold duration by `delta * DUR_STEP` seconds, floored at DUR_MIN. */
+export function stepDur(db: Db, itemId: string, delta: number): Db {
+  return {
+    ...db,
+    routineItems: db.routineItems.map((it) =>
+      it.id === itemId
+        ? { ...it, durSec: Math.max(DUR_MIN, (it.durSec ?? TYPE_DEFAULTS.time.durSec) + delta * DUR_STEP) }
+        : it,
+    ),
+  }
+}
+
 /** Override rest for one item; `null` reverts to the routine default. */
 export function setItemRest(db: Db, itemId: string, restSec: number | null): Db {
   return {
@@ -109,18 +133,24 @@ export function removeItem(db: Db, routineId: string, itemId: string): Db {
   }
 }
 
-/** Append an item (3×10 @ RIR 2, rest = routine default) with the given id. */
+/**
+ * Append an item with type-aware defaults (CHANGE_REQUEST §1.3): weight
+ * 3×10 @ RIR 2, reps (bodyweight) 3×12 @ RIR 2, time 3×30s (no RIR). Rest
+ * always starts at the routine default (null override).
+ */
 export function addItem(db: Db, routineId: string, exerciseId: string, id: string): Db {
   const order = itemsForRoutine(db, routineId).length
+  const type = exerciseType(db.exercises.find((e) => e.id === exerciseId) ?? {})
   const item: RoutineItem = {
     id,
     routineId,
     exerciseId,
     order,
-    sets: 3,
-    repsPerSet: 10,
-    targetRIR: 2,
+    sets: TYPE_DEFAULTS[type].sets,
+    repsPerSet: type === 'time' ? 0 : TYPE_DEFAULTS[type].reps,
+    targetRIR: type === 'time' ? 0 : TYPE_DEFAULTS[type].rir,
     restSec: null,
+    ...(type === 'time' ? { durSec: TYPE_DEFAULTS.time.durSec } : {}),
   }
   return { ...db, routineItems: [...db.routineItems, item] }
 }
@@ -170,8 +200,12 @@ export function deleteRoutine(db: Db, routineId: string): Db {
   }
 }
 
-export function itemSummary(item: RoutineItem, defaultRest: number): string {
-  return `${item.sets}×${item.repsPerSet} @ RIR ${item.targetRIR} · rest ${item.restSec ?? defaultRest}s`
+export function itemSummary(item: RoutineItem, defaultRest: number, type: ExerciseType): string {
+  const rest = item.restSec ?? defaultRest
+  if (type === 'time') {
+    return `${item.sets} × ${fmtDur(item.durSec ?? TYPE_DEFAULTS.time.durSec)} · rest ${rest}s`
+  }
+  return `${item.sets}×${item.repsPerSet} @ RIR ${item.targetRIR} · rest ${rest}s`
 }
 
 // ── Small presentational bits ──────────────────────────────────────────────
@@ -230,33 +264,50 @@ const REST_CHIPS: Array<number | null> = [null, 60, 90, 120, 180]
 function ExpandedItem({
   item,
   name,
+  type,
   defaultRest,
   restOpen,
   onCollapse,
   onRemove,
   onStepSets,
   onStepReps,
+  onStepDur,
   onRir,
   onRest,
   onToggleRest,
 }: {
   item: RoutineItem
   name: string
+  type: ExerciseType
   defaultRest: number
   restOpen: boolean
   onCollapse: () => void
   onRemove: () => void
   onStepSets: (d: number) => void
   onStepReps: (d: number) => void
+  onStepDur: (d: number) => void
   onRir: (v: number) => void
   onRest: (v: number | null) => void
   onToggleRest: () => void
 }) {
   const effectiveRest = item.restSec ?? defaultRest
+  const isTime = type === 'time'
+  const fields = isTime
+    ? ([
+        ['Sets', String(item.sets), onStepSets],
+        ['Target duration', fmtDur(item.durSec ?? TYPE_DEFAULTS.time.durSec), onStepDur],
+      ] as const)
+    : ([
+        ['Sets', String(item.sets), onStepSets],
+        ['Reps', String(item.repsPerSet), onStepReps],
+      ] as const)
   return (
     <div className="flex flex-col gap-[14px] rounded-rl border border-cardbd bg-cardbg p-[16px_14px]">
       <div onClick={onCollapse} className="flex cursor-pointer items-baseline justify-between">
-        <div className="text-[14px] font-bold tracking-[0.04em] text-acc tt-label">{name}</div>
+        <div className="flex items-center gap-2">
+          <div className="text-[14px] font-bold tracking-[0.04em] text-acc tt-label">{name}</div>
+          <TypeBadge type={type} />
+        </div>
         <button
           onClick={(e) => {
             e.stopPropagation()
@@ -269,12 +320,7 @@ function ExpandedItem({
       </div>
 
       <div className="grid grid-cols-2 gap-[10px]">
-        {(
-          [
-            ['Sets', item.sets, onStepSets],
-            ['Reps', item.repsPerSet, onStepReps],
-          ] as const
-        ).map(([lbl, val, step]) => (
+        {fields.map(([lbl, val, step]) => (
           <div key={lbl} className="flex flex-col gap-[6px]">
             <div className="text-[10px] tracking-[0.16em] text-mut uppercase">{lbl}</div>
             <div className="flex items-center gap-2">
@@ -288,27 +334,12 @@ function ExpandedItem({
         ))}
       </div>
 
-      <div className="flex flex-col gap-[6px]">
-        <div className="text-[10px] tracking-[0.16em] text-mut uppercase">Target RIR</div>
-        <div className="grid grid-cols-5 gap-[6px]">
-          {[0, 1, 2, 3, 4].map((v) => {
-            const sel = item.targetRIR === v
-            return (
-              <button
-                key={v}
-                onClick={() => onRir(v)}
-                className={`flex h-11 items-center justify-center rounded-rs border text-[14px] ${
-                  sel
-                    ? 'border-acc bg-acc font-extrabold text-onacc'
-                    : 'border-stepbd bg-stepbg text-sec'
-                }`}
-              >
-                {v === 4 ? '4+' : v}
-              </button>
-            )
-          })}
+      {!isTime && (
+        <div className="flex flex-col gap-[6px]">
+          <div className="text-[10px] tracking-[0.16em] text-mut uppercase">Target RIR</div>
+          <RirScale value={item.targetRIR} onSelect={onRir} height={48} />
         </div>
-      </div>
+      )}
 
       <div className="flex items-center justify-between gap-3">
         <div className="text-[10px] tracking-[0.16em] text-mut uppercase">Rest</div>
@@ -390,6 +421,7 @@ export function RoutineEditor({ id }: { id: string }) {
         <input
           value={routine.name}
           onChange={(e) => update((d) => setRoutineName(d, id, e.target.value))}
+          maxLength={MAX_ROUTINE_NAME_LEN}
           className="w-full border-0 bg-transparent p-[6px_0_2px] font-mono text-[30px] font-extrabold tracking-[0.02em] text-tx outline-none tt-label"
         />
         <div className="pb-4 text-[11px] tracking-[0.06em] text-dim uppercase">{subtitle}</div>
@@ -428,13 +460,16 @@ export function RoutineEditor({ id }: { id: string }) {
         {/* items */}
         <div className="flex flex-col gap-2">
           {items.map((item, i) => {
-            const name = exerciseById(db, item.exerciseId)?.name ?? 'Exercise'
+            const ex = exerciseById(db, item.exerciseId)
+            const name = ex?.name ?? 'Exercise'
+            const type = exerciseType(ex ?? {})
             if (expanded === item.id) {
               return (
                 <ExpandedItem
                   key={item.id}
                   item={item}
                   name={name}
+                  type={type}
                   defaultRest={routine.defaultRestSec}
                   restOpen={restOpen === item.id}
                   onCollapse={() => setExpanded(null)}
@@ -445,6 +480,7 @@ export function RoutineEditor({ id }: { id: string }) {
                   }}
                   onStepSets={(delta) => update((d) => stepSets(d, item.id, delta))}
                   onStepReps={(delta) => update((d) => stepReps(d, item.id, delta))}
+                  onStepDur={(delta) => update((d) => stepDur(d, item.id, delta))}
                   onRir={(v) => update((d) => setItemRir(d, item.id, v))}
                   onRest={(v) => {
                     update((d) => setItemRest(d, item.id, v))
@@ -463,11 +499,14 @@ export function RoutineEditor({ id }: { id: string }) {
                   }}
                   className="flex flex-1 cursor-pointer flex-col justify-center gap-1 rounded-rs border border-rowbd bg-rowbg p-[12px_14px] text-left"
                 >
-                  <div className="text-[13px] font-bold tracking-[0.03em] text-tx tt-label">
-                    {name}
+                  <div className="flex items-center gap-2">
+                    <div className="text-[13px] font-bold tracking-[0.03em] text-tx tt-label">
+                      {name}
+                    </div>
+                    <TypeBadge type={type} />
                   </div>
                   <div className="text-[11px] tracking-[0.04em] text-mut tabular-nums">
-                    {itemSummary(item, routine.defaultRestSec)}
+                    {itemSummary(item, routine.defaultRestSec, type)}
                   </div>
                 </button>
                 <div className="flex items-center gap-1 self-center">

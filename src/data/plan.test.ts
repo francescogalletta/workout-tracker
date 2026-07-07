@@ -92,8 +92,10 @@ describe('importRecompPlan', () => {
       expect(row.primaryMuscle).toBeTruthy()
       expect(row.equipment).toBeTruthy()
     }
-    // Guardrail swaps and anti-movement core all landed as customs.
-    for (const id of ['trap-bar-deadlift', 'back-extension', 'side-plank', 'pallof-press', 'dead-bug', 'bird-dog']) {
+    // Guardrail swaps and anti-movement core all landed as customs. (Side Plank
+    // now ships in the starter catalog as a timed hold, so it is no longer a
+    // plan-owned custom — the plan just references the catalog row.)
+    for (const id of ['trap-bar-deadlift', 'back-extension', 'pallof-press', 'dead-bug', 'bird-dog']) {
       expect(db.exercises.some((e) => e.id === id && e.isCustom)).toBe(true)
     }
     // Anti-movement core is modelled as strength (no invented cardio metrics).

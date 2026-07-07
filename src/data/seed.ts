@@ -2,6 +2,7 @@ import { getDb, update } from './store'
 import type {
   Db,
   Exercise,
+  ExerciseType,
   InsightTarget,
   LoadType,
   Metric,
@@ -24,8 +25,9 @@ function ex(
   primaryMuscle: string,
   equipment: string,
   loadType: LoadType = 'weighted',
+  type: ExerciseType = 'weight',
 ): Exercise {
-  return { id, name, muscleGroup, primaryMuscle, equipment, loadType, kind: 'strength', isCustom: false, notes: '' }
+  return { id, name, muscleGroup, primaryMuscle, equipment, loadType, kind: 'strength', type, isCustom: false, notes: '' }
 }
 
 function cardio(id: string, name: string, metrics: Metric[]): Exercise {
@@ -58,10 +60,10 @@ export const STARTER_EXERCISES: Exercise[] = [
   ex('cable-fly', 'Cable Fly', 'chest', 'chest', 'cable'),
   ex('cable-crossover', 'Cable Crossover', 'chest', 'chest', 'cable'),
   ex('weighted-dip', 'Weighted Dip', 'chest', 'chest', 'body', 'bodyweight'),
-  ex('push-up', 'Push-Up', 'chest', 'chest', 'body', 'bodyweight'),
+  ex('push-up', 'Push-Up', 'chest', 'chest', 'body', 'bodyweight', 'reps'),
   // back
   ex('lat-pulldown', 'Lat Pulldown', 'back', 'lats', 'cable'),
-  ex('pull-up', 'Pull-Up', 'back', 'lats', 'body', 'bodyweight'),
+  ex('pull-up', 'Pull-Up', 'back', 'lats', 'body', 'bodyweight', 'reps'),
   ex('assisted-pull-up', 'Assisted Pull-Up', 'back', 'lats', 'machine', 'assisted'),
   ex('seated-cable-row', 'Seated Cable Row', 'back', 'lats', 'cable'),
   ex('barbell-row', 'Barbell Row', 'back', 'upper back', 'barbell'),
@@ -97,6 +99,9 @@ export const STARTER_EXERCISES: Exercise[] = [
   // core
   ex('hanging-leg-raise', 'Hanging Leg Raise', 'core', 'abs', 'body', 'bodyweight'),
   ex('cable-crunch', 'Cable Crunch', 'core', 'abs', 'cable'),
+  ex('plank', 'Plank', 'core', 'core', 'body', 'bodyweight', 'time'),
+  ex('side-plank', 'Side Plank', 'core', 'core', 'body', 'bodyweight', 'time'),
+  ex('hollow-hold', 'Hollow Hold', 'core', 'core', 'body', 'bodyweight', 'time'),
   // cardio
   cardio('row-erg', 'Row Erg', [
     time(600),
@@ -124,6 +129,34 @@ export const STARTER_EXERCISES: Exercise[] = [
 export function ensureCatalog(): void {
   if (getDb().exercises.length > 0) return
   update((db) => ({ ...db, exercises: STARTER_EXERCISES }))
+}
+
+/**
+ * Bring an existing catalog up to the current model: backfill the `type`
+ * field on legacy rows (from the starter defaults, else `weight`) and append
+ * any starter exercises the store is missing (e.g. the timed core holds added
+ * with the exercise-type feature). Idempotent; a no-op once migrated. Runs at
+ * boot after `ensureCatalog`, so fresh stores skip it entirely.
+ */
+export function migrateCatalog(): void {
+  update((db) => {
+    const starterById = new Map(STARTER_EXERCISES.map((e) => [e.id, e]))
+    const haveIds = new Set(db.exercises.map((e) => e.id))
+    let changed = false
+
+    const exercises = db.exercises.map((e) => {
+      if (e.type !== undefined) return e
+      changed = true
+      return { ...e, type: starterById.get(e.id)?.type ?? ('weight' as const) }
+    })
+    for (const s of STARTER_EXERCISES) {
+      if (!haveIds.has(s.id)) {
+        exercises.push(s)
+        changed = true
+      }
+    }
+    return changed ? { ...db, exercises } : db
+  })
 }
 
 // ---------------------------------------------------------------------------

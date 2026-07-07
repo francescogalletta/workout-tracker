@@ -13,6 +13,15 @@ export function fmtW(w: number | null): string {
   return w === null ? '—' : String(Math.round(w * 10) / 10)
 }
 
+/** m:ss from a whole-second duration (timed sets), floored at 0. */
+export function fmtDur(sec: number | null): string {
+  if (sec === null) return '—'
+  const t = Math.max(0, Math.round(sec))
+  const m = Math.floor(t / 60)
+  const s = t % 60
+  return `${m}:${s < 10 ? '0' : ''}${s}`
+}
+
 /** Step value without trailing zeros (2.5, 1.25, 5). */
 export function fmtStep(v: number): string {
   return String(Math.round(v * 100) / 100)

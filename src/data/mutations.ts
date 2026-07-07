@@ -1,6 +1,6 @@
 import { activeSession } from './queries'
 import { getDb, update } from './store'
-import type { AppSettings, Routine, Session, SetLog } from './types'
+import type { AppSettings, Exercise, ExerciseType, Routine, Session, SetLog } from './types'
 import { newId } from './types'
 
 /**
@@ -69,4 +69,33 @@ export function updateRoutineItemExercise(itemId: string, exerciseId: string): v
 
 export function updateSettings(patch: Partial<AppSettings>): void {
   update((db) => ({ ...db, settings: { ...db.settings, ...patch } }))
+}
+
+/**
+ * Create a user ("custom") exercise from the create-exercise flow. Type is
+ * chosen once here (CHANGE_REQUEST §1.2/§2.4). Muscle group is not collected in
+ * that minimal screen, so it defaults to `other` (still searchable in the
+ * picker's "all" chip). Returns the new row so callers can immediately add it.
+ */
+export function createExercise(input: {
+  name: string
+  type: ExerciseType
+  muscleGroup?: string
+  primaryMuscle?: string
+  equipment?: string
+}): Exercise {
+  const ex: Exercise = {
+    id: newId('ex'),
+    name: input.name.trim(),
+    muscleGroup: input.muscleGroup ?? 'other',
+    primaryMuscle: input.primaryMuscle ?? 'custom',
+    equipment: input.equipment ?? (input.type === 'weight' ? 'barbell' : 'body'),
+    loadType: input.type === 'weight' ? 'weighted' : 'bodyweight',
+    kind: 'strength',
+    type: input.type,
+    isCustom: true,
+    notes: '',
+  }
+  update((db) => ({ ...db, exercises: [...db.exercises, ex] }))
+  return ex
 }

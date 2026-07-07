@@ -22,22 +22,50 @@ export interface Metric {
 
 export type LoadType = 'weighted' | 'bodyweight' | 'assisted'
 export type ExerciseKind = 'strength' | 'cardio'
+/**
+ * How a strength exercise is logged (chosen once, at creation — never
+ * per-routine). `weight` logs kg × reps @ RIR; `reps` is bodyweight (reps @ RIR,
+ * no weight); `time` is a timed hold (seconds only, no reps/RIR). Cardio is
+ * orthogonal (`kind: 'cardio'`) and ignores this. Optional on the row for
+ * migration safety — read through `exerciseType()`, which defaults to `weight`.
+ */
+export type ExerciseType = 'weight' | 'reps' | 'time'
 
 export interface Exercise {
   id: string
   name: string
-  /** Coarse group used for filtering & muscle-balance (chest/back/…/cardio). */
+  /** Coarse group used for filtering & muscle-balance (chest/back/…/core/cardio). */
   muscleGroup: string
   /** Finer primary muscle (e.g. "lats", "side delts"). */
   primaryMuscle: string
   equipment: string
   loadType: LoadType
   kind: ExerciseKind
+  /** How the exercise is logged. Absent on legacy rows → treat as `weight`. */
+  type?: ExerciseType
   /** Present for cardio exercises only. */
   metrics?: Metric[]
   isCustom: boolean
   notes: string
 }
+
+/** The logging type of an exercise, defaulting legacy/cardio rows to `weight`. */
+export function exerciseType(ex: { type?: ExerciseType }): ExerciseType {
+  return ex.type ?? 'weight'
+}
+
+/** Per-type routine-item + logged-set defaults (CHANGE_REQUEST §1.3). */
+export const TYPE_DEFAULTS = {
+  weight: { sets: 3, reps: 10, rir: 2 },
+  reps: { sets: 3, reps: 12, rir: 2 },
+  time: { sets: 3, durSec: 30 },
+} as const
+/** Timed-set duration granularity + floor (seconds). */
+export const DUR_STEP = 5
+export const DUR_MIN = 5
+
+/** Max routine name length (item 1). Enforced at the input + name setter. */
+export const MAX_ROUTINE_NAME_LEN = 40
 
 export interface Routine {
   id: string
@@ -58,6 +86,8 @@ export interface RoutineItem {
   sets: number
   repsPerSet: number
   targetRIR: number
+  /** Target hold seconds for `time` exercises; null/absent otherwise. */
+  durSec?: number | null
   /** Overrides the routine default; null = use routine default. */
   restSec: number | null
 }
@@ -84,6 +114,8 @@ export interface SetLog {
   weightKg: number
   reps: number
   rir: number | null
+  /** Actual held seconds for `time` sets; null/absent otherwise. */
+  durSec?: number | null
   /** Cardio metric values, else null. */
   values: Record<string, number> | null
   completedAt: number

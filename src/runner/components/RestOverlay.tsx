@@ -1,4 +1,5 @@
-import { fmtClock, fmtW } from '../../lib/format'
+import { fmtClock, fmtDur, fmtW } from '../../lib/format'
+import { typeOf } from '../session'
 import type { RestState, SessionState } from '../types'
 
 export function RestOverlay({
@@ -23,13 +24,22 @@ export function RestOverlay({
   let nextTop: string
   let nextMain: string
   let nextLast = ''
+  const nType = typeOf(nEx)
   if (nEx.kind === 'cardio') {
     nextTop = 'Next · Cardio'
     nextMain = nEx.name
   } else {
     nextTop = ns.isWarmup ? 'Next · Warm-up' : `Next · Set ${wIdx} of ${wTot}`
-    nextMain = `${fmtW(ns.weight)} kg × ${ns.reps}${ns.isWarmup ? '' : ` @ RIR ${nEx.targetRir}`}`
-    if (!ns.isWarmup && nEx.reco) nextLast = `Last · ${nEx.reco.lastMain} · ${nEx.reco.lastSub}`
+    if (nType === 'reps') {
+      nextMain = `${ns.reps} reps${ns.isWarmup ? '' : ` @ RIR ${nEx.targetRir}`}`
+    } else if (nType === 'time') {
+      nextMain = ns.isWarmup ? fmtDur(ns.durSec ?? null) : `${fmtDur(ns.durSec ?? null)} target`
+    } else {
+      nextMain = `${fmtW(ns.weight)} kg × ${ns.reps}${ns.isWarmup ? '' : ` @ RIR ${nEx.targetRir}`}`
+    }
+    if (!ns.isWarmup && nType === 'weight' && nEx.reco) {
+      nextLast = `Last · ${nEx.reco.lastMain} · ${nEx.reco.lastSub}`
+    }
   }
 
   return (
