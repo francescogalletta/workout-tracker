@@ -3,7 +3,8 @@ import { update } from '../data/store'
 import type { Db, Exercise, Session, SetLog } from '../data/types'
 import { detectPlateau, prescribe, type WorkingHistory } from '../engine/reco'
 import { warmupSets } from '../engine/warmup'
-import { fmtW } from '../lib/format'
+import { fmtDur, fmtW } from '../lib/format'
+import { TYPE_DEFAULTS } from '../data/types'
 import { createSession, nextUnlogged, type SessionSeed } from './session'
 import type { DbExercise, SessionExercise, SessionState, SetEntry } from './types'
 
@@ -24,7 +25,9 @@ export function toPickerItem(e: Exercise): DbExercise {
     muscle: e.primaryMuscle,
     group: e.muscleGroup,
     equipment: e.equipment,
-    ...(e.kind === 'cardio' ? { kind: 'cardio' as const, metrics: e.metrics } : {}),
+    ...(e.kind === 'cardio'
+      ? { kind: 'cardio' as const, metrics: e.metrics }
+      : { type: e.type ?? 'weight' }),
   }
 }
 
@@ -82,6 +85,67 @@ export function seedsForRoutine(
       return
     }
 
+    const type = ex.type ?? 'weight'
+
+    // Timed holds: no weight/reps/RIR, no reco/warm-ups — just a target duration.
+    if (type === 'time') {
+      const durSec = item.durSec ?? TYPE_DEFAULTS.time.durSec
+      const sets: SessionSeed['sets'] = []
+      for (let s = 0; s < item.sets; s++) {
+        sets.push({ weight: null, reps: 0, rir: null, durSec })
+      }
+      seeds.push({
+        exercise: {
+          exerciseId: ex.id,
+          routineItemId: item.id,
+          name: ex.name,
+          kind: 'strength',
+          type,
+          scheme: `${item.sets} × ${fmtDur(durSec)}`,
+          targetReps: null,
+          targetRir: null,
+          restSec: item.restSec,
+          muscle: ex.primaryMuscle,
+          group: ex.muscleGroup,
+          metrics: null,
+          reco: null,
+          target: null,
+          plateauText: null,
+        },
+        sets,
+      })
+      return
+    }
+
+    // Bodyweight reps: reps @ RIR, no weight, no engine (weight history is 0kg).
+    if (type === 'reps') {
+      const sets: SessionSeed['sets'] = []
+      for (let s = 0; s < item.sets; s++) {
+        sets.push({ weight: null, reps: item.repsPerSet, rir: item.targetRIR })
+      }
+      seeds.push({
+        exercise: {
+          exerciseId: ex.id,
+          routineItemId: item.id,
+          name: ex.name,
+          kind: 'strength',
+          type,
+          scheme: `${item.sets}×${item.repsPerSet} @ RIR ${item.targetRIR}`,
+          targetReps: item.repsPerSet,
+          targetRir: item.targetRIR,
+          restSec: item.restSec,
+          muscle: ex.primaryMuscle,
+          group: ex.muscleGroup,
+          metrics: null,
+          reco: null,
+          target: null,
+          plateauText: null,
+        },
+        sets,
+      })
+      return
+    }
+
     const history = workingHistory(db, ex.id, excludeSessionId)
     const presc = prescribe(history, item.repsPerSet, item.targetRIR, inc)
     const plateau = detectPlateau(history, item.repsPerSet, item.targetRIR, inc)
@@ -103,10 +167,11 @@ export function seedsForRoutine(
         routineItemId: item.id,
         name: ex.name,
         kind: 'strength',
+        type,
         scheme: `${item.sets}×${item.repsPerSet} @ RIR ${item.targetRIR}`,
         targetReps: item.repsPerSet,
         targetRir: item.targetRIR,
-        restSec: item.restSec ?? routine.defaultRestSec,
+        restSec: item.restSec,
         muscle: ex.primaryMuscle,
         group: ex.muscleGroup,
         metrics: null,
@@ -134,8 +199,14 @@ export function seedsForRoutine(
   return seeds
 }
 
-function defaultStrengthSets(): Array<Partial<SetEntry> & Pick<SetEntry, 'weight' | 'reps' | 'rir'>> {
-  return [0, 1, 2].map(() => ({ weight: null, reps: 10, rir: 2 }))
+function defaultStrengthSets(
+  type: 'weight' | 'reps' | 'time',
+): Array<Partial<SetEntry> & Pick<SetEntry, 'weight' | 'reps' | 'rir'>> {
+  if (type === 'time') {
+    return [0, 1, 2].map(() => ({ weight: null, reps: 0, rir: null, durSec: TYPE_DEFAULTS.time.durSec }))
+  }
+  const reps = type === 'reps' ? TYPE_DEFAULTS.reps.reps : TYPE_DEFAULTS.weight.reps
+  return [0, 1, 2].map(() => ({ weight: null, reps, rir: 2 }))
 }
 
 /** Session exercise for a logged exercise that isn't in the routine (added mid-session). */
@@ -164,15 +235,19 @@ function adHocSeed(db: Db, log: SetLog): SessionSeed {
       sets: [{ isWarmup: false, weight: null, reps: 0, rir: null, values }],
     }
   }
+  const type = ex?.type ?? 'weight'
+  const timed = type === 'time'
+  const reps = type === 'reps' ? TYPE_DEFAULTS.reps.reps : TYPE_DEFAULTS.weight.reps
   return {
     exercise: {
       exerciseId: log.exerciseId || null,
       routineItemId: null,
       name: ex?.name ?? log.exerciseName,
       kind: 'strength',
-      scheme: '3×10 @ RIR 2',
-      targetReps: 10,
-      targetRir: 2,
+      type,
+      scheme: timed ? `3 × ${fmtDur(TYPE_DEFAULTS.time.durSec)}` : `3×${reps} @ RIR 2`,
+      targetReps: timed ? null : reps,
+      targetRir: timed ? null : 2,
       restSec: null,
       muscle: ex?.primaryMuscle ?? '',
       group: ex?.muscleGroup ?? '',
@@ -181,7 +256,7 @@ function adHocSeed(db: Db, log: SetLog): SessionSeed {
       target: null,
       plateauText: null,
     },
-    sets: defaultStrengthSets(),
+    sets: defaultStrengthSets(type),
   }
 }
 
@@ -214,6 +289,7 @@ export function restoreState(db: Db, session: Session, now: number): SessionStat
           weight: s.weight,
           reps: s.reps,
           rir: s.rir,
+          durSec: s.durSec ?? null,
           values: s.values ?? null,
         })),
       )
@@ -230,6 +306,7 @@ export function restoreState(db: Db, session: Session, now: number): SessionStat
       weight: log.isWarmup || exercises[e].kind !== 'cardio' ? log.weightKg : null,
       reps: log.reps,
       rir: log.rir,
+      durSec: typeof log.durSec === 'number' ? log.durSec : null,
       values: log.values ? { ...log.values } : null,
       logId: log.id,
     }
@@ -238,6 +315,8 @@ export function restoreState(db: Db, session: Session, now: number): SessionStat
   }
 
   const restored: SessionState = { ...state, exercises, sets }
+  const routine = session.routineId ? routineById(db, session.routineId) : null
+  restored.sessionRest = routine?.defaultRestSec ?? null
   const nxt = nextUnlogged(sets)
   if (nxt) restored.ptr = nxt
   return restored
@@ -260,6 +339,8 @@ export function syncLoggedEdits(db: Db, state: SessionState): void {
       if (row.weightKg !== w) patch.weightKg = w
       if (row.reps !== x.reps) patch.reps = x.reps
       if (row.rir !== x.rir) patch.rir = x.rir
+      const dur = x.durSec ?? null
+      if ((row.durSec ?? null) !== dur) patch.durSec = dur
       const values = x.values ? { ...x.values } : null
       if (JSON.stringify(row.values) !== JSON.stringify(values)) patch.values = values
       if (Object.keys(patch).length > 0) patches.set(x.logId, patch)

@@ -1,4 +1,7 @@
-import type { DbExercise } from '../types'
+import { useState } from 'react'
+import { createExercise } from '../../data/mutations'
+import { fmtDur } from '../../lib/format'
+import type { DbExercise, ExerciseType } from '../types'
 import { Chip, HairlineLabel, QuietLink } from './ui'
 
 export const PICKER_GROUPS = ['all', 'chest', 'back', 'shoulders', 'arms', 'legs', 'core', 'cardio']
@@ -36,6 +39,14 @@ export function filterDb(
   return list.map((d) => ({ ...d, match: filter.mode === 'swap' && d.muscle === targetMuscle }))
 }
 
+/** Picker row sub-line suffix conveying the logging type (CHANGE_REQUEST §5). */
+function typeSuffix(it: DbExercise): string {
+  if (it.kind === 'cardio') return ''
+  if (it.type === 'reps') return ' · bodyweight'
+  if (it.type === 'time') return ' · timed'
+  return ''
+}
+
 export function ExercisePicker({
   filter,
   title,
@@ -60,12 +71,35 @@ export function ExercisePicker({
    */
   footnote?: string | null
 }) {
+  const [creating, setCreating] = useState(false)
+
   const foot =
     footnote === undefined
       ? filter.mode === 'swap'
         ? "Same-muscle alternatives first · not already in today's routine"
         : 'Added to this session only — routine template unchanged'
       : footnote
+
+  if (creating) {
+    return (
+      <CreateExercise
+        initialName={filter.query}
+        onCancel={() => setCreating(false)}
+        onCreate={(name, type) => {
+          const ex = createExercise({ name, type })
+          setCreating(false)
+          onPick({
+            id: ex.id,
+            name: ex.name,
+            muscle: ex.primaryMuscle,
+            group: ex.muscleGroup,
+            equipment: ex.equipment,
+            type: ex.type,
+          })
+        }}
+      />
+    )
+  }
 
   return (
     <div className="animate-ovl-up fixed inset-0 z-45 flex justify-center bg-bg font-mono">
@@ -119,6 +153,7 @@ export function ExercisePicker({
                 </div>
                 <div className="text-[10px] tracking-[0.06em] text-mut uppercase">
                   {it.muscle} · {it.equipment}
+                  {typeSuffix(it)}
                 </div>
               </div>
               {it.match && (
@@ -131,12 +166,107 @@ export function ExercisePicker({
           {items.length === 0 && (
             <div className="py-6 text-center text-[12px] text-dim">No matches</div>
           )}
+
+          {/* Create-custom-exercise — the one place an exercise's type is chosen. */}
+          <button
+            onClick={() => setCreating(true)}
+            className="mt-1 flex h-[52px] w-full cursor-pointer items-center justify-center rounded-rs border border-dashed border-bds bg-transparent font-mono text-[12px] tracking-[0.1em] text-sec uppercase"
+          >
+            + Create custom exercise
+          </button>
         </div>
         {foot && (
-          <div className="text-center text-[10px] tracking-[0.06em] text-dim uppercase">
-            {foot}
-          </div>
+          <div className="text-center text-[10px] tracking-[0.06em] text-dim uppercase">{foot}</div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Create-custom-exercise screen (CHANGE_REQUEST §2.4) ─────────────────────
+
+const TYPE_SEGMENTS: ReadonlyArray<readonly [ExerciseType, string]> = [
+  ['weight', 'Weight'],
+  ['reps', 'Reps'],
+  ['time', 'Time'],
+]
+
+/** Live "EXAMPLE SET READS" preview line for the chosen type. */
+function exampleSet(type: ExerciseType): string {
+  if (type === 'weight') return 'Set 1 · 62.5 kg × 8 · RIR 2'
+  if (type === 'reps') return 'Set 1 · 12 reps · RIR 2'
+  return `Set 1 · ${fmtDur(45)}`
+}
+
+function CreateExercise({
+  initialName,
+  onCreate,
+  onCancel,
+}: {
+  initialName: string
+  onCreate: (name: string, type: ExerciseType) => void
+  onCancel: () => void
+}) {
+  const [name, setName] = useState(initialName)
+  const [type, setType] = useState<ExerciseType>('weight')
+  const canCreate = name.trim().length > 0
+
+  return (
+    <div className="animate-ovl-up fixed inset-0 z-45 flex justify-center bg-bg font-mono">
+      <div className="box-border flex w-full max-w-[430px] flex-col gap-4 pt-[calc(var(--safe-top)+24px)] pr-[max(18px,var(--safe-right))] pb-[calc(var(--safe-bottom)+24px)] pl-[max(18px,var(--safe-left))]">
+        <div className="flex items-baseline justify-between">
+          <div className="text-[15px] font-bold tracking-[0.04em] text-tx uppercase">
+            New exercise
+          </div>
+          <QuietLink label="Cancel" onClick={onCancel} className="text-[12px] text-mut" />
+        </div>
+
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={40}
+          placeholder="Exercise name"
+          autoFocus
+          className="box-border h-12 w-full rounded-rs border border-stepbd bg-stepbg px-[14px] font-mono text-[15px] text-tx outline-none"
+        />
+
+        <div className="flex flex-col gap-[8px]">
+          <div className="text-[10px] tracking-[0.16em] text-mut uppercase">Logged as</div>
+          <div className="grid grid-cols-3 gap-[6px]">
+            {TYPE_SEGMENTS.map(([t, label]) => {
+              const sel = type === t
+              return (
+                <button
+                  key={t}
+                  onClick={() => setType(t)}
+                  className={`flex h-12 cursor-pointer items-center justify-center rounded-rs border font-mono text-[13px] font-bold tracking-[0.06em] uppercase ${
+                    sel ? 'border-acc bg-acc text-onacc' : 'border-stepbd bg-stepbg text-sec'
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-[8px]">
+          <div className="text-[10px] tracking-[0.16em] text-mut uppercase">Example set reads</div>
+          <div className="flex items-center rounded-rs border border-dashed border-bds px-[14px] py-[14px] text-[13px] tracking-[0.03em] text-sec tabular-nums">
+            {exampleSet(type)}
+          </div>
+        </div>
+
+        <div className="flex-1" />
+
+        <button
+          onClick={() => canCreate && onCreate(name, type)}
+          disabled={!canCreate}
+          className="tt-label flex h-[56px] w-full items-center justify-center rounded-rl border-0 bg-acc font-mono text-[15px] font-extrabold tracking-[0.06em] text-onacc uppercase disabled:opacity-40"
+          style={{ cursor: canCreate ? 'pointer' : 'not-allowed' }}
+        >
+          Create + Add
+        </button>
       </div>
     </div>
   )

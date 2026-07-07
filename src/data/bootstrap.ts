@@ -1,6 +1,6 @@
 import { getDb, runWhenSettled } from './store'
 import { importRecompPlan } from './plan'
-import { ensureCatalog, seedDemoData } from './seed'
+import { ensureCatalog, migrateCatalog, seedDemoData } from './seed'
 
 const DEFAULT_SEARCH = typeof window !== 'undefined' ? window.location.search : ''
 
@@ -23,6 +23,7 @@ const DEFAULT_SEARCH = typeof window !== 'undefined' ? window.location.search : 
  */
 export function runSeed(search: string = DEFAULT_SEARCH): void {
   ensureCatalog()
+  migrateCatalog()
   const wantDemo = /[?&]demo(=|&|$)/.test(search)
   const wantPlan = /[?&]plan(=|&|$)/.test(search)
   if (!wantDemo && !wantPlan) return

@@ -79,8 +79,9 @@ export const RECOMP_CUSTOM_EXERCISES: Exercise[] = [
   customEx('lying-leg-curl', 'Lying Leg Curl', 'legs', 'hamstrings', 'machine'),
   customEx('hack-squat', 'Hack Squat', 'legs', 'quads', 'machine'),
   customEx('incline-db-curl', 'Incline DB Curl', 'arms', 'biceps', 'dumbbell'),
-  // Anti-movement core (guardrail): no loaded spinal flexion.
-  customEx('side-plank', 'Side Plank', 'core', 'abs', 'body', 'bodyweight'),
+  // Anti-movement core (guardrail): no loaded spinal flexion. Side Plank now
+  // ships in the starter catalog (a timed hold), so the plan references that
+  // catalog row rather than defining its own.
   customEx('bird-dog', 'Bird-Dog', 'core', 'abs', 'body', 'bodyweight'),
   customEx('pallof-press', 'Pallof Press', 'core', 'abs', 'cable'),
   customEx('dead-bug', 'Dead Bug', 'core', 'abs', 'body', 'bodyweight'),

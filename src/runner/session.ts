@@ -1,5 +1,7 @@
+import { fmtDur } from '../lib/format'
 import type {
   DbExercise,
+  ExerciseType,
   Metric,
   Ptr,
   SessionExercise,
@@ -7,6 +9,15 @@ import type {
   SetEntry,
   Settings,
 } from './types'
+
+/** Logging type of a session exercise (legacy/cardio rows default to weight). */
+export function typeOf(ex: { type?: ExerciseType }): ExerciseType {
+  return ex.type ?? 'weight'
+}
+
+const DUR_STEP = 5
+const DUR_MIN = 5
+const TIME_DEFAULT_DUR = 30
 
 /** Template for seeding a session (demo now; from routineItems + engine later). */
 export interface SessionSeed {
@@ -70,8 +81,10 @@ export type Action =
   | { type: 'stepReps'; dir: 1 | -1 }
   | { type: 'typeReps'; value: number }
   | { type: 'selectRir'; value: number }
+  | { type: 'stepDur'; dir: 1 | -1 }
   | { type: 'stepMetric'; key: string; dir: 1 | -1 }
-  | { type: 'log'; now: number; settings: Settings; logId?: string }
+  | { type: 'setSessionRest'; sec: number }
+  | { type: 'log'; now: number; settings: Settings; logId?: string; durSec?: number }
   | { type: 'move'; index: number; dir: 1 | -1 }
   | { type: 'swap'; exIdx: number; item: DbExercise }
   | { type: 'add'; item: DbExercise }
@@ -110,6 +123,14 @@ export function reduce(state: SessionState, action: Action): SessionState {
         x.rir = action.value
       })
 
+    case 'stepDur':
+      return mutPointed(state, (x) => {
+        x.durSec = Math.max(DUR_MIN, (x.durSec ?? TIME_DEFAULT_DUR) + action.dir * DUR_STEP)
+      })
+
+    case 'setSessionRest':
+      return { ...state, sessionRest: action.sec }
+
     case 'stepMetric': {
       const def = state.exercises[state.ptr.e].metrics?.find((d) => d.key === action.key)
       if (!def) return state
@@ -121,7 +142,7 @@ export function reduce(state: SessionState, action: Action): SessionState {
     }
 
     case 'log':
-      return logSet(state, action.now, action.settings, action.logId)
+      return logSet(state, action.now, action.settings, action.logId, action.durSec)
 
     case 'move':
       return moveExercise(state, action.index, action.dir)
@@ -152,27 +173,42 @@ export function reduce(state: SessionState, action: Action): SessionState {
 }
 
 /**
- * Log the pointed set: mark it, seed remaining empty weights of the same
- * exercise, advance the pointer, and start rest for working strength sets.
- * Caller must ensure the set has a weight when strength (keypad flow).
+ * Log the pointed set: mark it, carry its weight forward to the exercise's
+ * remaining unlogged sets, advance the pointer, and start rest for working
+ * strength sets. Only `weight`-type sets require a weight (the keypad flow
+ * guarantees it); `reps`/`time` sets log without one. `durSec`, when passed,
+ * is the actual held seconds recorded on a timed set.
+ *
+ * Rest length resolves per CHANGE_REQUEST §3.4:
+ *   exercise override (`ex.restSec`) → session default (`state.sessionRest`)
+ *   → Settings default.
  */
 export function logSet(
   state: SessionState,
   now: number,
   settings: Settings,
   logId?: string,
+  durSec?: number,
 ): SessionState {
   const p = state.ptr
   const cur = state.sets[p.e][p.s]
   const ex = state.exercises[p.e]
-  if (ex.kind === 'strength' && cur.weight === null) return state
+  if (ex.kind === 'strength' && typeOf(ex) === 'weight' && cur.weight === null) return state
 
   const sets = cloneSets(state.sets)
-  sets[p.e][p.s].logged = true
-  if (logId !== undefined) sets[p.e][p.s].logId = logId
-  const seedW = sets[p.e][p.s].weight
-  for (let s = p.s + 1; s < sets[p.e].length; s++) {
-    if (!sets[p.e][s].logged && sets[p.e][s].weight === null) sets[p.e][s].weight = seedW
+  const logged = sets[p.e][p.s]
+  logged.logged = true
+  if (logId !== undefined) logged.logId = logId
+  if (durSec !== undefined) logged.durSec = durSec
+
+  // Carry the just-logged weight to later unlogged working sets so the weight
+  // you settled on this session sticks (CHANGE_REQUEST item 4; weight-type only).
+  if (typeOf(ex) === 'weight' && logged.weight !== null) {
+    const seedW = logged.weight
+    for (let s = p.s + 1; s < sets[p.e].length; s++) {
+      const nx = sets[p.e][s]
+      if (!nx.logged && !nx.isWarmup) nx.weight = seedW
+    }
   }
 
   const nxt = nextUnloggedAfter(sets, p.e, p.s) ?? nextUnlogged(sets)
@@ -180,7 +216,7 @@ export function logSet(
   if (nxt) {
     next.ptr = nxt
     if (!cur.isWarmup && ex.kind !== 'cardio') {
-      const restSec = ex.restSec ?? settings.defaultRestSec
+      const restSec = ex.restSec ?? state.sessionRest ?? settings.defaultRestSec
       next.resting = {
         endsAt: now + restSec * 1000,
         exName: state.exercises[nxt.e].name,
@@ -223,28 +259,40 @@ function cardioSet(metrics: Metric[]): SetEntry {
   return { isWarmup: false, logged: false, weight: null, reps: 0, rir: null, values }
 }
 
-function freshStrengthSets(): SetEntry[] {
-  return [0, 1, 2].map(() => ({
-    isWarmup: false,
-    logged: false,
-    weight: null,
-    reps: 10,
-    rir: 2,
-    values: null,
-  }))
+/** One unlogged set with the given type's defaults (CHANGE_REQUEST §1.3). */
+function freshSetOf(type: ExerciseType): SetEntry {
+  if (type === 'time') {
+    return { isWarmup: false, logged: false, weight: null, reps: 0, rir: null, durSec: TIME_DEFAULT_DUR, values: null }
+  }
+  const reps = type === 'reps' ? 12 : 10
+  return { isWarmup: false, logged: false, weight: null, reps, rir: 2, values: null }
+}
+
+/** Three fresh sets of the given strength type. */
+function freshStrengthSets(type: ExerciseType): SetEntry[] {
+  return [0, 1, 2].map(() => freshSetOf(type))
+}
+
+/** Default one-exercise scheme label for a strength type. */
+function schemeFor(type: ExerciseType): string {
+  if (type === 'time') return `3 × ${fmtDur(TIME_DEFAULT_DUR)}`
+  return type === 'reps' ? '3×12 @ RIR 2' : '3×10 @ RIR 2'
 }
 
 function sessionExerciseFrom(item: DbExercise): SessionExercise {
   const cardio = item.kind === 'cardio'
+  const type: ExerciseType = item.type ?? 'weight'
+  const timed = !cardio && type === 'time'
   return {
     exerciseId: item.id ?? null,
     routineItemId: null,
     name: item.name,
     kind: cardio ? 'cardio' : 'strength',
-    scheme: cardio ? 'cardio' : '3×10 @ RIR 2',
-    targetReps: cardio ? null : 10,
-    targetRir: cardio ? null : 2,
-    restSec: cardio ? null : 90,
+    type: cardio ? undefined : type,
+    scheme: cardio ? 'cardio' : schemeFor(type),
+    targetReps: cardio || timed ? null : type === 'reps' ? 12 : 10,
+    targetRir: cardio || timed ? null : 2,
+    restSec: null,
     muscle: item.muscle,
     group: item.group,
     metrics: item.metrics ?? null,
@@ -266,18 +314,24 @@ export function applySwap(state: SessionState, exIdx: number, item: DbExercise):
   nextEx.routineItemId = prev.routineItemId ?? null
   const exercises = state.exercises.map((m, i) => (i === exIdx ? nextEx : m))
   const sets = cloneSets(state.sets)
+  const newType = item.type ?? 'weight'
 
   if (item.kind === 'cardio') {
     sets[exIdx] = [cardioSet(item.metrics ?? [])]
   } else if (wasCardio) {
-    sets[exIdx] = freshStrengthSets()
-  } else {
-    // keep the scheme; clear prescriptions on sets not yet performed
+    sets[exIdx] = freshStrengthSets(newType)
+  } else if (newType === typeOf(prev)) {
+    // same type: keep the scheme; clear prescriptions on sets not yet performed
     nextEx.scheme = prev.scheme
     nextEx.targetReps = prev.targetReps
     nextEx.targetRir = prev.targetRir
     nextEx.restSec = prev.restSec
     sets[exIdx] = sets[exIdx].map((x) => (x.logged ? x : { ...x, weight: null }))
+  } else {
+    // different type: rebuild unlogged sets with the new type's defaults
+    // (CHANGE_REQUEST §5), keeping any logged sets and the rest override.
+    nextEx.restSec = prev.restSec
+    sets[exIdx] = sets[exIdx].map((x) => (x.logged ? x : freshSetOf(newType)))
   }
 
   const next: SessionState = { ...state, exercises, sets }
@@ -291,7 +345,8 @@ export function applySwap(state: SessionState, exIdx: number, item: DbExercise):
 /** Append an exercise to this session only (routine template untouched). */
 export function applyAdd(state: SessionState, item: DbExercise): SessionState {
   const ex = sessionExerciseFrom(item)
-  const newSets = item.kind === 'cardio' ? [cardioSet(item.metrics ?? [])] : freshStrengthSets()
+  const newSets =
+    item.kind === 'cardio' ? [cardioSet(item.metrics ?? [])] : freshStrengthSets(item.type ?? 'weight')
   return {
     ...state,
     exercises: [...state.exercises, ex],
@@ -317,7 +372,7 @@ export function totalVolumeKg(state: SessionState): number {
 export function summaryChanges(state: SessionState): string[] {
   const out: string[] = []
   state.exercises.forEach((m, i) => {
-    if (m.kind === 'cardio') return
+    if (m.kind === 'cardio' || typeOf(m) !== 'weight') return
     const logged = state.sets[i].filter((x) => x.logged && !x.isWarmup)
     if (!logged.length) return
     if (!m.reco) {

@@ -27,7 +27,7 @@ describe('seedsForRoutine', () => {
       scheme: '4×8 @ RIR 2',
       targetReps: 8,
       targetRir: 2,
-      restSec: 90, // routine default (item has no override)
+      restSec: null, // override-only now; session rest resolves the default (§3.4)
     })
     // last session: 62.5 kg, reps 9/8/8/8, RIR 2/2/2/3 → surplus 0.5 → repeat
     expect(bench.exercise.reco).toMatchObject({ lastW: 62.5, lastMain: '62.5 kg' })
@@ -190,6 +190,7 @@ describe('toPickerItem', () => {
       muscle: 'chest',
       group: 'chest',
       equipment: 'barbell',
+      type: 'weight',
     })
     const erg = toPickerItem(db.exercises.find((e) => e.id === 'row-erg')!)
     expect(erg.kind).toBe('cardio')

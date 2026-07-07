@@ -28,6 +28,9 @@ export interface Metric {
   dflt: number
 }
 
+/** How a strength exercise is logged (mirrors data/types `ExerciseType`). */
+export type ExerciseType = 'weight' | 'reps' | 'time'
+
 /** An exercise as it exists in the picker (mapped from the store catalog). */
 export interface DbExercise {
   /** Store exercise id; absent only in legacy demo fixtures. */
@@ -36,6 +39,8 @@ export interface DbExercise {
   muscle: string
   group: string
   equipment: string
+  /** Logging type for strength exercises; absent → `weight`. */
+  type?: ExerciseType
   kind?: 'cardio'
   metrics?: Metric[]
 }
@@ -64,6 +69,8 @@ export interface SessionExercise {
   routineItemId?: string | null
   name: string
   kind: 'strength' | 'cardio'
+  /** Logging type for strength exercises; absent → `weight`. */
+  type?: ExerciseType
   scheme: string
   targetReps: number | null
   targetRir: number | null
@@ -83,6 +90,11 @@ export interface SetEntry {
   weight: number | null
   reps: number
   rir: number | null
+  /**
+   * Timed sets: the target hold seconds while pending, the actual held seconds
+   * once logged. Null/absent for weight/reps/cardio sets.
+   */
+  durSec?: number | null
   values: Record<string, number> | null
   /** Store SetLog id once logged (edits to logged sets sync to the store). */
   logId?: string | null
@@ -105,6 +117,13 @@ export interface SessionState {
   sets: SetEntry[][]
   ptr: Ptr
   resting: RestState | null
+  /**
+   * Session-scoped rest default (CHANGE_REQUEST §3.4). Set from the routine
+   * default at session start; the runner's rest chip re-points it for the rest
+   * of today. Never written back to Settings. Null → fall back to the app
+   * default. Per-exercise overrides (`SessionExercise.restSec`) still win.
+   */
+  sessionRest?: number | null
   startedAt: number
   finishedAt: number | null
   finished: boolean

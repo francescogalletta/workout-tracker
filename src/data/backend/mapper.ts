@@ -50,6 +50,7 @@ function mapExercise(r: Row): Exercise {
     equipment: str(r.equipment),
     loadType: str(r.loadType, 'weighted') as Exercise['loadType'],
     kind: str(r.kind, 'strength') as Exercise['kind'],
+    ...(typeof r.type === 'string' ? { type: r.type as Exercise['type'] } : {}),
     ...(r.metrics != null ? { metrics: r.metrics as Metric[] } : {}),
     isCustom: bool(r.isCustom),
     notes: str(r.notes),
@@ -76,6 +77,7 @@ function mapRoutineItem(r: Row): RoutineItem {
     sets: num(r.sets),
     repsPerSet: num(r.repsPerSet),
     targetRIR: num(r.targetRIR),
+    ...(typeof r.durSec === 'number' ? { durSec: r.durSec } : {}),
     restSec: numOrNull(r.restSec),
   }
 }
@@ -102,6 +104,7 @@ function mapSetLog(r: Row): SetLog {
     weightKg: num(r.weightKg),
     reps: num(r.reps),
     rir: numOrNull(r.rir),
+    ...(typeof r.durSec === 'number' ? { durSec: r.durSec } : {}),
     values: (r.values ?? null) as Record<string, number> | null,
     completedAt: num(r.completedAt),
   }
