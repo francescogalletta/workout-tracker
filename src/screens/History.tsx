@@ -192,7 +192,7 @@ export function History({
 
   return (
     <div className="flex min-h-screen justify-center bg-bg font-mono">
-      <div className="box-border flex min-h-screen w-full max-w-[430px] flex-col px-[18px] pt-5 pb-7">
+      <div className="box-border flex min-h-screen w-full max-w-[430px] flex-col pt-5 pr-[max(18px,var(--safe-right))] pb-[calc(var(--safe-bottom)+24px)] pl-[max(18px,var(--safe-left))]">
         {/* header */}
         <div className="flex items-baseline pb-[14px]">
           <div className="tt-label text-[17px] font-bold tracking-[0.05em] text-tx">History</div>
@@ -472,7 +472,7 @@ function FilterSheet({
     <div onClick={onClose} className="fixed inset-0 z-50 flex items-end justify-center bg-black/55">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="animate-sheet-up box-border flex max-h-[80vh] w-full max-w-[430px] flex-col gap-3 overflow-y-auto rounded-t-rl border border-cardbd bg-cardbg px-[18px] pt-5 pb-[26px]"
+        className="animate-sheet-up box-border flex max-h-[80vh] w-full max-w-[430px] flex-col gap-3 overflow-y-auto rounded-t-rl border border-cardbd bg-cardbg px-[18px] pt-5 pb-[calc(var(--safe-bottom)+26px)]"
       >
         <div className="text-[11px] tracking-[0.16em] text-mut uppercase">Filter log</div>
 

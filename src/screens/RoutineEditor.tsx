@@ -354,7 +354,7 @@ export function RoutineEditor({ id }: { id: string }) {
 
   return (
     <div className="flex min-h-screen justify-center bg-bg font-mono">
-      <div className="box-border flex w-full max-w-[430px] flex-col p-[20px_18px_28px]">
+      <div className="box-border flex w-full max-w-[430px] flex-col pt-[20px] pr-[max(18px,var(--safe-right))] pb-[calc(var(--safe-bottom)+28px)] pl-[max(18px,var(--safe-left))]">
         {/* header */}
         <div className="flex items-baseline justify-between pb-1">
           <button

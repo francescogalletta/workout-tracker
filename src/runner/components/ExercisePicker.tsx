@@ -69,7 +69,7 @@ export function ExercisePicker({
 
   return (
     <div className="animate-ovl-up fixed inset-0 z-45 flex justify-center bg-bg font-mono">
-      <div className="box-border flex w-full max-w-[430px] flex-col gap-3 p-[24px_18px]">
+      <div className="box-border flex w-full max-w-[430px] flex-col gap-3 pt-[calc(var(--safe-top)+24px)] pr-[max(18px,var(--safe-right))] pb-[calc(var(--safe-bottom)+24px)] pl-[max(18px,var(--safe-left))]">
         <div className="flex items-baseline justify-between">
           <div className="text-[15px] font-bold tracking-[0.04em] text-tx uppercase">{title}</div>
           <QuietLink label="Cancel" onClick={onCancel} className="text-[12px] text-mut" />
