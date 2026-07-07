@@ -34,10 +34,15 @@ fodder).
 instantdb.com in `.env.local` (`VITE_INSTANT_APP_ID`) to activate; a real
 magic-code round-trip can't be exercised in tests, so the sign-in merge core
 (`mergeDb`) is unit-tested and the async wiring is driven by the auth callback.
-Exercise DB seeding from free-exercise-db (SPEC §6),
-vite-plugin-pwa + icons (icons live in the design project), lb display
+Exercise DB seeding from free-exercise-db (SPEC §6), lb display
 conversion (`settings.unit` persists but everything renders kg), ad-hoc
 runner exercises default to 90 s rest instead of the Settings default.
+
+## License
+
+MIT — see [LICENSE](LICENSE). To run your own instance, create a free
+InstantDB app (instantdb.com) and put its id in `.env.local` per
+`.env.example`; without one the app runs fully offline with no sync.
 
 ## Commands (everything runs in Docker)
 
