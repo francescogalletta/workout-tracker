@@ -34,29 +34,79 @@ describe('syncState (pure selector)', () => {
   })
 })
 
-describe('Settings sync section — three states', () => {
-  it('no backend → dim "Sync unavailable" note, no button', () => {
-    const html = renderToString(<Settings syncAvailable={false} />)
+describe('Settings sync section — status-driven states', () => {
+  it('unavailable → dim "Sync unavailable" note, no button', () => {
+    const html = renderToString(<Settings status={{ state: 'unavailable' }} />)
     expect(html).toContain('Sync unavailable · no backend configured')
     expect(html).not.toContain('Sign in to sync')
     expect(html).not.toContain('Sign out')
   })
 
-  it('backend + signed out → "Sync off" explainer + sign-in affordance', () => {
-    const html = renderToString(<Settings syncAvailable={true} />)
+  it('off → "Sync off" explainer + sign-in affordance', () => {
+    const html = renderToString(<Settings status={{ state: 'off' }} />)
     expect(html).toContain('Sync off')
     expect(html).toContain('Your data lives on this device. Sign in to sync across devices.')
     expect(html).toContain('Sign in to sync')
     expect(html).not.toContain('Sign out')
   })
 
-  it('backend + signed in → email, synced label, Sign out', () => {
-    updateSettings({ email: 'lifter@example.com' })
-    const html = renderToString(<Settings syncAvailable={true} />)
+  it('connecting → account + "Connecting…" + Retry sync', () => {
+    const html = renderToString(
+      <Settings status={{ state: 'connecting', account: 'lifter@example.com' }} />,
+    )
     expect(html).toContain('lifter@example.com')
-    expect(html).toContain('Synced · magic-code sign-in')
+    expect(html).toContain('Connecting')
+    expect(html).toContain('Retry sync')
+  })
+
+  it('on → account, "Cloud sync on", row counts, Sign out', () => {
+    const html = renderToString(
+      <Settings
+        status={{
+          state: 'on',
+          account: 'lifter@example.com',
+          remoteCounts: { routines: 3, workouts: 12 },
+        }}
+      />,
+    )
+    expect(html).toContain('lifter@example.com')
+    expect(html).toContain('Cloud sync on')
+    expect(html).toContain('3 routines')
+    expect(html).toContain('12 workouts')
+    expect(html).toContain('in account')
     expect(html).toContain('Sign out')
     expect(html).not.toContain('Sync off')
+  })
+
+  it('on → surfaces the empty-but-healthy upload diagnostic when present', () => {
+    const html = renderToString(
+      <Settings
+        status={{
+          state: 'on',
+          account: 'lifter@example.com',
+          remoteCounts: { routines: 0, workouts: 0 },
+          detail: "This account had no data yet — this device's data was uploaded to it.",
+        }}
+      />,
+    )
+    expect(html).toContain('0 routines')
+    expect(html).toContain('had no data')
+  })
+
+  it('error → detail line + Retry sync + "On this device"', () => {
+    const html = renderToString(
+      <Settings
+        status={{
+          state: 'error',
+          account: 'lifter@example.com',
+          detail: 'Sync timed out. Check your connection and retry.',
+        }}
+      />,
+    )
+    expect(html).toContain('Sync problem')
+    expect(html).toContain('On this device')
+    expect(html).toContain('Sync timed out')
+    expect(html).toContain('Retry sync')
   })
 })
 

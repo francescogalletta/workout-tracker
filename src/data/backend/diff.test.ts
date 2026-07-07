@@ -65,13 +65,16 @@ describe('diffDb', () => {
     expect(op.fields).not.toHaveProperty('id')
   })
 
-  it('emits update ops with ONLY changed fields (no slug/owner) for edits', () => {
+  it('emits update ops with the changed fields + owner (no slug) for edits', () => {
     const prev: Db = { ...emptyDb(), routines: [routine('r1', { cycleOrder: null })] }
     const next: Db = { ...emptyDb(), routines: [routine('r1', { cycleOrder: 2, name: 'Push A' })] }
     const ops = diffDb(prev, next, OWNER)
     expect(ops).toHaveLength(1)
     expect(ops[0]).toMatchObject({ entity: 'routines', id: 'r1', op: 'update' })
-    expect(ops[0].fields).toEqual({ cycleOrder: 2, name: 'Push A' })
+    // owner is stamped on updates too, so the `update: auth.id == newData.owner`
+    // dashboard rule passes (newData is the patch, not the merged row); slug is not.
+    expect(ops[0].fields).toEqual({ cycleOrder: 2, name: 'Push A', owner: OWNER })
+    expect(ops[0].fields).not.toHaveProperty('slug')
   })
 
   it('detects deep changes in json fields (values) but skips unchanged ones', () => {
@@ -82,7 +85,17 @@ describe('diffDb', () => {
     const changed: Db = { ...emptyDb(), setLogs: [setLog('l1', { values: { time: 900 } })] }
     const ops = diffDb(prev, changed, OWNER)
     expect(ops).toHaveLength(1)
-    expect(ops[0].fields).toEqual({ values: { time: 900 } })
+    expect(ops[0].fields).toEqual({ values: { time: 900 }, owner: OWNER })
+  })
+
+  it('stamps owner on every update op so ownership perms accept the write', () => {
+    const prev: Db = { ...emptyDb(), routines: [routine('r1'), routine('r2')] }
+    const next: Db = {
+      ...emptyDb(),
+      routines: [routine('r1', { name: 'A2' }), routine('r2', { archived: true })],
+    }
+    const ops = diffDb(prev, next, OWNER)
+    expect(ops.every((o) => o.op === 'update' && o.fields?.owner === OWNER)).toBe(true)
   })
 
   it('emits delete ops for removed rows', () => {
