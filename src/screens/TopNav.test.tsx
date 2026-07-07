@@ -6,8 +6,8 @@ import { TopNav, activeNavKey, showTopNav } from './TopNav'
 /**
  * TopNav: the persistent top navigation (owner decision). Verifies the four
  * destinations render, the active-route accent mapping (including the
- * routineEditor → Routines aliasing), and that the nav is suppressed on the
- * chrome-free Runner and the focused Sign In flow.
+ * routineEditor → Routines aliasing and run → Workout), and that the nav is
+ * suppressed only on the focused Sign In flow.
  */
 
 /** Label of the link carrying aria-current="page" in the SSR output, if any. */
@@ -20,14 +20,14 @@ describe('TopNav', () => {
   it('renders the wordmark and all four destinations', () => {
     const html = renderToString(<TopNav route="home" />)
     expect(html).toContain('Lift')
-    for (const label of ['Home', 'Routines', 'History', 'Settings']) {
+    for (const label of ['Workout', 'Routines', 'History', 'Settings']) {
       expect(html).toContain(label)
     }
   })
 
   it('marks the active route with the accent colour and no other', () => {
     const html = renderToString(<TopNav route="home" />)
-    expect(activeLabel(html)).toBe('Home')
+    expect(activeLabel(html)).toBe('Workout')
     expect(html).toContain('text-acc') // active link paints accent
     expect(html).toContain('text-mut') // inactive links stay muted
   })
@@ -44,18 +44,18 @@ describe('TopNav', () => {
 })
 
 describe('activeNavKey', () => {
-  it('aliases routineEditor onto Routines and nulls the chrome-free routes', () => {
+  it('aliases routineEditor onto Routines and run onto Workout; nulls sign in', () => {
     expect(activeNavKey('routineEditor')).toBe('routines')
     expect(activeNavKey('routines')).toBe('routines')
-    expect(activeNavKey('run')).toBeNull()
+    expect(activeNavKey('run')).toBe('home')
     expect(activeNavKey('signin')).toBeNull()
   })
 })
 
 describe('showTopNav', () => {
-  it('hides the nav only on the Runner and Sign In', () => {
-    const hidden: Route['name'][] = ['run', 'signin']
-    const shown: Route['name'][] = ['home', 'routines', 'routineEditor', 'history', 'settings']
+  it('hides the nav only on Sign In (kept visible during a workout)', () => {
+    const hidden: Route['name'][] = ['signin']
+    const shown: Route['name'][] = ['home', 'run', 'routines', 'routineEditor', 'history', 'settings']
     for (const r of hidden) expect(showTopNav(r)).toBe(false)
     for (const r of shown) expect(showTopNav(r)).toBe(true)
   })

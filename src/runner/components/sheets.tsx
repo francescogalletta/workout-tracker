@@ -166,6 +166,46 @@ export function SwapConfirmSheet({
   )
 }
 
+const REST_SESSION_OPTIONS = [60, 90, 120, 150]
+
+/** Session-scoped rest default picker (CHANGE_REQUEST §3.4). */
+export function RestSessionSheet({
+  current,
+  onPick,
+  onClose,
+}: {
+  current: number
+  onPick: (sec: number) => void
+  onClose: () => void
+}) {
+  return (
+    <Sheet onClose={onClose} z={52}>
+      <div className="flex flex-col gap-2">
+        <div className="pb-[6px] text-[11px] tracking-[0.16em] text-mut uppercase">
+          Rest · this session
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {REST_SESSION_OPTIONS.map((v) => (
+            <button
+              key={v}
+              onClick={() => onPick(v)}
+              className={`flex h-[52px] cursor-pointer items-center justify-center rounded-rs border font-mono text-[16px] font-bold tabular-nums ${
+                current === v ? 'border-acc bg-acc text-onacc' : 'border-stepbd bg-stepbg text-sec'
+              }`}
+            >
+              {v}s
+            </button>
+          ))}
+        </div>
+        <div className="pt-[10px] text-center text-[10px] tracking-[0.06em] text-dim uppercase">
+          Applies to all remaining rests today. Exercises with their own rest keep it. Your saved
+          default stays unchanged.
+        </div>
+      </div>
+    </Sheet>
+  )
+}
+
 export function FinishConfirmSheet({
   workingSets,
   onFinish,

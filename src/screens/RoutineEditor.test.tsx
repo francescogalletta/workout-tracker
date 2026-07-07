@@ -1,9 +1,10 @@
 import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { itemsForRoutine, rotationRoutines, routineById } from '../data/queries'
+import { exerciseById, itemsForRoutine, rotationRoutines, routineById } from '../data/queries'
 import { ensureCatalog, seedDemoData } from '../data/seed'
 import { getDb, resetDb, update } from '../data/store'
 import type { Db } from '../data/types'
+import { exerciseType, MAX_ROUTINE_NAME_LEN } from '../data/types'
 import {
   addItem,
   deleteRoutine,
@@ -16,6 +17,7 @@ import {
   setItemRest,
   setItemRir,
   setRotation,
+  setRoutineName,
   stepReps,
   stepSets,
 } from './RoutineEditor'
@@ -68,13 +70,14 @@ describe('remove item', () => {
 })
 
 describe('add item', () => {
-  it('appends 3×10 @ RIR 2 with rest null at the end', () => {
+  it('appends 3×10 @ RIR 2 with rest null at the end (weight exercise)', () => {
     seedDemoData(T0)
     const n = itemsForRoutine(db(), 'r-push-a').length
     update((d) => addItem(d, 'r-push-a', 'pec-deck', 'ri-new'))
     const after = itemsForRoutine(db(), 'r-push-a')
     expect(after.length).toBe(n + 1)
     const added = after[after.length - 1]
+    expect(exerciseType(exerciseById(db(), 'pec-deck')!)).toBe('weight')
     expect(added).toMatchObject({
       id: 'ri-new',
       exerciseId: 'pec-deck',
@@ -84,6 +87,40 @@ describe('add item', () => {
       targetRIR: 2,
       restSec: null,
     })
+  })
+
+  it('defaults a `time` exercise (Plank) to 3 sets, 30s hold, no meaningful RIR', () => {
+    seedDemoData(T0)
+    expect(exerciseType(exerciseById(db(), 'plank')!)).toBe('time')
+    update((d) => addItem(d, 'r-push-a', 'plank', 'ri-time'))
+    const added = itemsForRoutine(db(), 'r-push-a').find((it) => it.id === 'ri-time')!
+    expect(added.sets).toBe(3)
+    expect(added.durSec).toBe(30)
+    expect(added.restSec).toBeNull()
+  })
+
+  it('defaults a `reps` (bodyweight) exercise (Pull-Up) to 3×12 @ RIR 2', () => {
+    seedDemoData(T0)
+    expect(exerciseType(exerciseById(db(), 'pull-up')!)).toBe('reps')
+    update((d) => addItem(d, 'r-push-a', 'pull-up', 'ri-reps'))
+    const added = itemsForRoutine(db(), 'r-push-a').find((it) => it.id === 'ri-reps')!
+    expect(added).toMatchObject({ sets: 3, repsPerSet: 12, targetRIR: 2, restSec: null })
+  })
+})
+
+describe('routine name', () => {
+  it('truncates to MAX_ROUTINE_NAME_LEN', () => {
+    seedDemoData(T0)
+    const long = 'x'.repeat(MAX_ROUTINE_NAME_LEN + 20)
+    update((d) => setRoutineName(d, 'r-push-a', long))
+    expect(routineById(db(), 'r-push-a')!.name).toBe('x'.repeat(MAX_ROUTINE_NAME_LEN))
+    expect(routineById(db(), 'r-push-a')!.name.length).toBe(MAX_ROUTINE_NAME_LEN)
+  })
+
+  it('leaves short names untouched', () => {
+    seedDemoData(T0)
+    update((d) => setRoutineName(d, 'r-push-a', 'Push Day'))
+    expect(routineById(db(), 'r-push-a')!.name).toBe('Push Day')
   })
 })
 
@@ -119,8 +156,20 @@ describe('rest override null vs value', () => {
 
   it('summary uses the routine default only when restSec is null', () => {
     const base = { id: 'x', routineId: 'r', exerciseId: 'e', order: 0, sets: 4, repsPerSet: 8, targetRIR: 2 }
-    expect(itemSummary({ ...base, restSec: null }, 90)).toBe('4×8 @ RIR 2 · rest 90s')
-    expect(itemSummary({ ...base, restSec: 60 }, 90)).toBe('4×8 @ RIR 2 · rest 60s')
+    expect(itemSummary({ ...base, restSec: null }, 90, 'weight')).toBe('4×8 @ RIR 2 · rest 90s')
+    expect(itemSummary({ ...base, restSec: 60 }, 90, 'weight')).toBe('4×8 @ RIR 2 · rest 60s')
+  })
+
+  it('summary for `reps` type reads the same as weight (bodyweight, no kg shown)', () => {
+    const base = { id: 'x', routineId: 'r', exerciseId: 'e', order: 0, sets: 3, repsPerSet: 12, targetRIR: 1 }
+    expect(itemSummary({ ...base, restSec: null }, 90, 'reps')).toBe('3×12 @ RIR 1 · rest 90s')
+  })
+
+  it('summary for `time` type shows sets × duration instead of reps/RIR', () => {
+    const base = { id: 'x', routineId: 'r', exerciseId: 'e', order: 0, sets: 3, repsPerSet: 0, targetRIR: 0 }
+    expect(itemSummary({ ...base, durSec: 45, restSec: 60 }, 90, 'time')).toBe('3 × 0:45 · rest 60s')
+    // falls back to the type default (30s) when durSec is unset
+    expect(itemSummary({ ...base, restSec: null }, 90, 'time')).toBe('3 × 0:30 · rest 90s')
   })
 })
 
@@ -211,6 +260,23 @@ describe('render smoke', () => {
     ensureCatalog()
     const html = renderToString(<RoutineEditor id="nope" />)
     expect(html).toBe('')
+  })
+
+  it('shows a Time badge and duration summary for a `time`-type item', () => {
+    seedDemoData(T0)
+    update((d) => addItem(d, 'r-push-a', 'plank', 'ri-plank'))
+    const html = renderToString(<RoutineEditor id="r-push-a" />)
+    expect(html).toContain('Plank')
+    expect(html).toContain('>Time<')
+    expect(html).toContain('3 × 0:30')
+  })
+
+  it('shows a Bodyweight badge for a `reps`-type item', () => {
+    seedDemoData(T0)
+    update((d) => addItem(d, 'r-push-a', 'pull-up', 'ri-pullup'))
+    const html = renderToString(<RoutineEditor id="r-push-a" />)
+    expect(html).toContain('Pull-Up')
+    expect(html).toContain('>Bodyweight<')
   })
 })
 

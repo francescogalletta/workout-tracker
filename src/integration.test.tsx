@@ -407,8 +407,10 @@ describe('g. settings reach fresh sessions', () => {
     )
 
     const seed = seedsForRoutine(getDb(), routine.id, T0)[0]
-    // Rest fallback: item has no override → routine default (from Settings).
-    expect(seed.exercise.restSec).toBe(120)
+    // Rest is now override-only on the seed (null = no per-item override); the
+    // routine/session/settings default is resolved at log time (§3.4), asserted
+    // via the logged-rest endsAt below.
+    expect(seed.exercise.restSec).toBeNull()
     // Warm-up rounding respects the 5 kg increment (30 / 40, both multiples of 5).
     const warmups = seed.sets.filter((x) => x.isWarmup)
     expect(warmups.length).toBeGreaterThan(0)

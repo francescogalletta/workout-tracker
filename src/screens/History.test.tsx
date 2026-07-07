@@ -18,7 +18,8 @@ import {
   targetWeeksLeft,
   toggleFilter,
 } from './History'
-import type { Session } from '../data/types'
+import { newId } from '../data/types'
+import type { Session, SetLog } from '../data/types'
 
 const T0 = 1_750_000_000_000
 const DAY = 24 * 3600 * 1000
@@ -159,6 +160,40 @@ describe('History render smoke — Log tab', () => {
     ensureCatalog()
     const html = renderToString(<History now={T0} />)
     expect(html).toContain('No workouts yet')
+  })
+
+  it('renders a timed exercise as m:ss instead of a kg/reps/rir table', () => {
+    ensureCatalog()
+    const session: Session = {
+      id: newId('s'),
+      routineId: null,
+      routineName: 'Core',
+      status: 'completed',
+      startedAt: T0,
+      finishedAt: T0 + 5 * 60_000,
+    }
+    const log: SetLog = {
+      id: newId('l'),
+      sessionId: session.id,
+      exerciseId: 'plank',
+      exerciseName: 'Plank',
+      setNumber: 1,
+      isWarmup: false,
+      weightKg: 0,
+      reps: 0,
+      rir: null,
+      durSec: 47,
+      values: null,
+      completedAt: T0 + 60_000,
+    }
+    update((db) => ({ ...db, sessions: [...db.sessions, session], setLogs: [...db.setLogs, log] }))
+
+    const html = renderToString(<History now={T0} />)
+    expect(html).toContain('Plank')
+    expect(html).toContain('0:47')
+    // timed table shows a single "time" row, not kg/reps/rir columns
+    expect(html).toContain('>time<')
+    expect(html).not.toContain('>kg<')
   })
 })
 
