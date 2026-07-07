@@ -28,6 +28,26 @@ interface KeypadState {
 }
 
 /**
+ * Resolve the iOS safe-area top inset (--safe-top) to pixels, once. The custom
+ * property holds an `env()` expression that getComputedStyle won't resolve, so
+ * we measure it off a throwaway probe whose height IS the env() value. In a
+ * normal browser tab (env → 0) this returns 0 and the auto-scroll offset is
+ * unchanged. Cached because the inset is fixed for the session.
+ */
+let cachedSafeTop: number | null = null
+function safeTopPx(): number {
+  if (cachedSafeTop !== null) return cachedSafeTop
+  if (typeof document === 'undefined') return 0
+  const probe = document.createElement('div')
+  probe.style.cssText =
+    'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none;'
+  document.body.appendChild(probe)
+  cachedSafeTop = probe.getBoundingClientRect().height
+  probe.remove()
+  return cachedSafeTop
+}
+
+/**
  * The Workout Runner, wired to the store: the session is built from the
  * routine + engine output (restoring any already-logged sets on resume),
  * every logged set writes a SetLog immediately, and Finish stamps the
@@ -92,7 +112,10 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     const el = activeCardEl.current
     if (el && el.isConnected) {
       const r = el.getBoundingClientRect()
-      window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 130), behavior: 'smooth' })
+      // 130 clears the sticky-free Runner header; add the safe-area top inset so
+      // the active card lands below the notch/status bar on standalone iOS.
+      const offset = 130 + safeTopPx()
+      window.scrollTo({ top: Math.max(0, window.scrollY + r.top - offset), behavior: 'smooth' })
     }
   }, [ptr.e, ptr.s])
 
@@ -353,7 +376,7 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
 
   return (
     <div className="flex min-h-screen justify-center bg-bg font-mono">
-      <div className="box-border flex w-full max-w-[430px] flex-col p-[12px_18px_120px]">
+      <div className="box-border flex w-full max-w-[430px] flex-col pt-[calc(var(--safe-top)+12px)] pr-[max(18px,var(--safe-right))] pb-[calc(var(--safe-bottom)+120px)] pl-[max(18px,var(--safe-left))]">
         {/* header */}
         <div className="flex items-baseline justify-between pt-[14px] pb-[6px]">
           <div className="text-[17px] font-bold tracking-[0.05em] text-tx tt-label">
@@ -429,7 +452,7 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
       {/* pinned log bar */}
       {barVisible && (
         <div className="fixed right-0 bottom-0 left-0 z-30 flex justify-center">
-          <div className="box-border w-full max-w-[430px] border-t border-bd bg-bg p-[10px_18px_16px]">
+          <div className="box-border w-full max-w-[430px] border-t border-bd bg-bg pt-[10px] pr-[max(18px,var(--safe-right))] pb-[calc(var(--safe-bottom)+16px)] pl-[max(18px,var(--safe-left))]">
             <button
               onClick={logActive}
               className="tt-label flex h-[58px] w-full cursor-pointer items-center justify-center rounded-rl border-0 bg-acc font-mono text-[15px] font-extrabold tracking-[0.06em] text-onacc"

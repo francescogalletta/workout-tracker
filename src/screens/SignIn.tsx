@@ -74,7 +74,7 @@ function SyncUnavailable() {
       className="flex min-h-screen justify-center bg-bg"
       style={{ fontFamily: 'var(--f, "JetBrains Mono", monospace)' }}
     >
-      <div className="box-border flex min-h-screen w-full max-w-[430px] flex-col p-[24px_20px_28px]">
+      <div className="box-border flex min-h-screen w-full max-w-[430px] flex-col pt-[calc(var(--safe-top)+24px)] pr-[max(20px,var(--safe-right))] pb-[calc(var(--safe-bottom)+28px)] pl-[max(20px,var(--safe-left))]">
         <div className="text-[12px] font-bold tracking-[0.24em] text-dim uppercase">Lift</div>
         <div className="flex flex-1 flex-col justify-center gap-[14px]">
           <div className={eyebrow}>Sync unavailable</div>
@@ -144,7 +144,7 @@ function SignInFlow({ authApi }: { authApi: AuthApi }) {
       className="flex min-h-screen justify-center bg-bg"
       style={{ fontFamily: 'var(--f, "JetBrains Mono", monospace)' }}
     >
-      <div className="box-border flex min-h-screen w-full max-w-[430px] flex-col p-[24px_20px_28px]">
+      <div className="box-border flex min-h-screen w-full max-w-[430px] flex-col pt-[calc(var(--safe-top)+24px)] pr-[max(20px,var(--safe-right))] pb-[calc(var(--safe-bottom)+28px)] pl-[max(20px,var(--safe-left))]">
         <div className="flex items-baseline justify-between">
           <div className="text-[12px] font-bold tracking-[0.24em] text-dim uppercase">Lift</div>
           <button

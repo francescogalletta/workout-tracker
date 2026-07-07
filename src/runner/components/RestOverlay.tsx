@@ -34,7 +34,7 @@ export function RestOverlay({
 
   return (
     <div className="animate-ovl-up fixed inset-0 z-40 flex justify-center bg-bg font-mono">
-      <div className="box-border flex w-full max-w-[430px] flex-col p-[28px_20px]">
+      <div className="box-border flex w-full max-w-[430px] flex-col pt-[calc(var(--safe-top)+28px)] pr-[max(20px,var(--safe-right))] pb-[calc(var(--safe-bottom)+28px)] pl-[max(20px,var(--safe-left))]">
         <div className="flex justify-between">
           <div className="text-[11px] tracking-[0.18em] text-mut uppercase">Rest</div>
           <div className="text-[11px] tracking-[0.08em] text-dim uppercase">{rest.exName}</div>

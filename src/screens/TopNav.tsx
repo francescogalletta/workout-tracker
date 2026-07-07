@@ -47,7 +47,7 @@ export function showTopNav(route: Route['name']): boolean {
 export function TopNav({ route }: { route: Route['name'] }) {
   const active = activeNavKey(route)
   return (
-    <nav className="sticky top-0 z-20 flex justify-center border-b border-bd bg-bg font-mono">
+    <nav className="sticky top-0 z-20 flex justify-center border-b border-bd bg-bg pt-[max(var(--safe-top),8px)] font-mono">
       <div className="box-border flex h-12 w-full max-w-[430px] items-center justify-between px-5">
         <span className="text-[12px] font-bold tracking-[0.24em] text-dim uppercase">Lift</span>
         <div className="flex items-center">

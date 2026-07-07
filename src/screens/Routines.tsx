@@ -34,7 +34,7 @@ export function Routines() {
 
   return (
     <div className="flex min-h-screen justify-center bg-bg font-mono">
-      <div className="box-border flex w-full max-w-[430px] flex-col px-[18px] pt-5 pb-7">
+      <div className="box-border flex w-full max-w-[430px] flex-col pt-5 pr-[max(18px,var(--safe-right))] pb-[calc(var(--safe-bottom)+24px)] pl-[max(18px,var(--safe-left))]">
         <div className="flex items-baseline pb-4">
           <div className="tt-label text-[17px] font-bold tracking-[0.05em] text-tx">Routines</div>
         </div>

@@ -37,7 +37,7 @@ export function Home() {
 
   return (
     <div className="flex min-h-screen justify-center bg-bg font-mono">
-      <div className="box-border flex min-h-screen w-full max-w-[430px] flex-col px-5 pt-5 pb-7">
+      <div className="box-border flex min-h-screen w-full max-w-[430px] flex-col pt-5 pr-[max(20px,var(--safe-right))] pb-[calc(var(--safe-bottom)+24px)] pl-[max(20px,var(--safe-left))]">
         <div className="flex flex-1 flex-col justify-center gap-[10px]">
           {firstRun ? (
             <>

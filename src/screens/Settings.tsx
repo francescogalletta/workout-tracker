@@ -86,7 +86,7 @@ export function Settings({ syncAvailable = hasInstant }: { syncAvailable?: boole
       className="flex min-h-screen justify-center bg-bg"
       style={{ fontFamily: 'var(--f, "JetBrains Mono", monospace)' }}
     >
-      <div className="box-border flex min-h-screen w-full max-w-[430px] flex-col p-[24px_18px_28px]">
+      <div className="box-border flex min-h-screen w-full max-w-[430px] flex-col pt-[24px] pr-[max(18px,var(--safe-right))] pb-[calc(var(--safe-bottom)+28px)] pl-[max(18px,var(--safe-left))]">
         <div className="flex items-baseline pb-[18px]">
           <div className="tt-label text-[17px] font-bold tracking-[0.05em] text-tx">Settings</div>
         </div>

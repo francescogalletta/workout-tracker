@@ -18,7 +18,7 @@ export function Sheet({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="animate-sheet-up box-border w-full max-w-[430px] rounded-t-rl border border-cardbd bg-cardbg px-[18px] pt-5 pb-[26px]"
+        className="animate-sheet-up box-border w-full max-w-[430px] rounded-t-rl border border-cardbd bg-cardbg px-[18px] pt-5 pb-[calc(var(--safe-bottom)+26px)]"
       >
         {children}
       </div>

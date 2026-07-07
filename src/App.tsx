@@ -125,7 +125,7 @@ function RunScreen() {
 function ResumePrompt({ session, setsLogged }: { session: Session; setsLogged: number }) {
   const minAgo = Math.max(0, Math.round((Date.now() - session.startedAt) / 60000))
   return (
-    <div className="fixed inset-0 z-70 box-border flex items-center justify-center bg-black/65 p-6 font-mono">
+    <div className="fixed inset-0 z-70 box-border flex items-center justify-center bg-black/65 pt-[calc(var(--safe-top)+24px)] pr-[calc(var(--safe-right)+24px)] pb-[calc(var(--safe-bottom)+24px)] pl-[calc(var(--safe-left)+24px)] font-mono">
       <div className="animate-ovl-up box-border flex w-full max-w-[360px] flex-col gap-3 rounded-rl border border-cardbd bg-cardbg p-[22px_18px]">
         <div className="tt-label text-[13px] font-extrabold tracking-[0.06em] text-tx">
           Workout in progress
@@ -174,7 +174,7 @@ export function SyncConflictPrompt({
   const routines = `${counts.routines} ${counts.routines === 1 ? 'routine' : 'routines'}`
   const workouts = `${counts.workouts} ${counts.workouts === 1 ? 'workout' : 'workouts'}`
   return (
-    <div className="fixed inset-0 z-70 box-border flex items-center justify-center bg-black/65 p-6 font-mono">
+    <div className="fixed inset-0 z-70 box-border flex items-center justify-center bg-black/65 pt-[calc(var(--safe-top)+24px)] pr-[calc(var(--safe-right)+24px)] pb-[calc(var(--safe-bottom)+24px)] pl-[calc(var(--safe-left)+24px)] font-mono">
       <div className="animate-ovl-up box-border flex w-full max-w-[360px] flex-col gap-3 rounded-rl border border-cardbd bg-cardbg p-[22px_18px]">
         <div className="tt-label text-[13px] font-extrabold tracking-[0.06em] text-tx">
           Account data found
