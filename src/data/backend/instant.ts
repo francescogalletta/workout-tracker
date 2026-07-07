@@ -30,10 +30,14 @@ const QUERY = {
  *   everything-query first resolves. `store.enableSync` uses it to run the
  *   sign-in merge-up against the freshly-loaded cloud data (the merge must wait
  *   for the real remote, not the empty cold-start snapshot).
+ * @param onError Fired when the subscription reports a query error or a
+ *   background `transact` rejects. `store.enableSync` maps this to the 'error'
+ *   sync status so the failure is visible instead of silent.
  */
 export function createInstantBackend(
   notify: () => void,
   onFirstData?: (remote: Db) => void,
+  onError?: (err: unknown, kind: 'query' | 'transact') => void,
 ): Backend {
   // Optimistic snapshot: seeded from query results, advanced eagerly on write.
   let snap: Db = emptyDb()
@@ -43,8 +47,10 @@ export function createInstantBackend(
   idb._core.subscribeQuery(QUERY, (resp) => {
     const r = resp as { data?: unknown; error?: unknown }
     if (r.error) {
-      // Permission errors before sign-in are expected; log others, keep rendering.
+      // A query error post-sign-in is meaningful (this backend only exists after
+      // sign-in): surface it as an observable sync error, keep rendering local.
       console.warn('[instant] query error', r.error)
+      onError?.(r.error, 'query')
       return
     }
     if (!r.data) return
@@ -75,6 +81,7 @@ export function createInstantBackend(
     })
     void idb.transact(chunks as never).catch((err: unknown) => {
       console.warn('[instant] transact failed', err)
+      onError?.(err, 'transact')
     })
   }
 

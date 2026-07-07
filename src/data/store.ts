@@ -3,7 +3,7 @@ import { type Db, emptyDb } from './types'
 import type { Backend } from './backend/backend'
 import { createLocalBackend } from './backend/local'
 import { mergeDb } from './backend/merge'
-import { adoptRemote, classifySync, remoteCounts, type RemoteCounts } from './backend/sync'
+import { adoptRemote, classifySync, isMeaningful, remoteCounts, type RemoteCounts } from './backend/sync'
 import { setUserId } from './backend/authState'
 
 /**
@@ -47,6 +47,9 @@ export const hasInstant =
 
 const listeners = new Set<() => void>()
 function notify(): void {
+  // Any state change invalidates the memoized status snapshot (see getSyncStatus,
+  // which must return a stable reference between notifies for useSyncExternalStore).
+  statusCache = null
   for (const cb of listeners) cb()
 }
 
@@ -73,6 +76,162 @@ function clearConflictScratch(): void {
   conflictEmail = null
 }
 
+// ── Sync status machine ────────────────────────────────────────────────────
+// Observability layer over the enableSync lifecycle. The states:
+//   'unavailable' no backend configured (idle, !hasInstant)
+//   'off'         backend configured, not syncing (idle, hasInstant)
+//   'connecting'  signed in, awaiting the first remote snapshot (timer armed)
+//   'conflict'    first snapshot found meaningful data on both sides (modal up)
+//   'on'          the instant backend is live; carries account + live counts
+//   'error'       the first snapshot never arrived (~12s timeout) OR the
+//                 subscription/transact reported an error
+export interface SyncStatus {
+  state: 'unavailable' | 'off' | 'connecting' | 'conflict' | 'on' | 'error'
+  detail?: string
+  account?: string
+  remoteCounts?: { routines: number; workouts: number }
+}
+
+/** How long to wait for the first remote snapshot before flipping to 'error'. */
+export const SYNC_CONNECT_TIMEOUT_MS = 12_000
+
+// Injectable timer so the connecting→error timeout is testable without wall-clock
+// waits. Reset to the real timers on every module load (vitest resetModules).
+type Scheduler = (fn: () => void, ms: number) => unknown
+let scheduleTimeout: Scheduler = (fn, ms) => setTimeout(fn, ms)
+let cancelScheduled: (handle: unknown) => void = (h) =>
+  clearTimeout(h as ReturnType<typeof setTimeout>)
+
+/** Test seam: swap the connect-timeout timer for a fake the test can fire. */
+export function __setSyncTimers(schedule: Scheduler, cancel: (handle: unknown) => void): void {
+  scheduleTimeout = schedule
+  cancelScheduled = cancel
+}
+
+let lastSyncError: string | null = null
+let syncAccount: string | null = null
+let syncUserId: string | null = null
+let syncInst: Backend | null = null
+// One-line diagnostic shown after a flip (e.g. the empty-but-healthy upload case),
+// held until the next state change.
+let uploadDetail: string | null = null
+let connectTimer: unknown = null
+let statusCache: SyncStatus | null = null
+
+function clearConnectTimer(): void {
+  if (connectTimer != null) {
+    cancelScheduled(connectTimer)
+    connectTimer = null
+  }
+}
+
+/** Timeout while still connecting → surface a human-readable error. */
+function onConnectTimeout(): void {
+  connectTimer = null
+  if (pendingInstant && mode === 'local' && !pendingConflict && !lastSyncError) {
+    lastSyncError = "Can't reach your account — the first sync timed out. Check your connection, then retry."
+    notify()
+  }
+}
+
+/** Enter the 'connecting' phase and arm the first-snapshot timeout. */
+function beginConnecting(email: string | null): void {
+  pendingInstant = true
+  syncAccount = email
+  lastSyncError = null
+  uploadDetail = null
+  clearConnectTimer()
+  connectTimer = scheduleTimeout(onConnectTimeout, SYNC_CONNECT_TIMEOUT_MS)
+  notify()
+}
+
+/** Turn an InstantDB error into a human-readable, non-technical line. */
+function humanSyncError(err: unknown, kind: 'query' | 'transact'): string {
+  const message =
+    (err as { message?: unknown })?.message ??
+    (err as { body?: { message?: unknown } })?.body?.message
+  const suffix = typeof message === 'string' && message ? ` (${message})` : ''
+  return kind === 'transact'
+    ? `A change couldn't be saved to the cloud${suffix}. It's still on this device — retry to sync it.`
+    : `Sync couldn't read your account${suffix}. Check your connection or permissions, then retry.`
+}
+
+/** Wired to the instant backend's subscription/transact error callbacks. */
+function reportSyncError(err: unknown, kind: 'query' | 'transact'): void {
+  clearConnectTimer()
+  lastSyncError = humanSyncError(err, kind)
+  notify()
+}
+
+function computeSyncStatus(): SyncStatus {
+  // An in-flight or established machine reports its real state regardless of the
+  // build-time hasInstant flag (a live machine proves a backend exists). Only a
+  // fully idle store falls back to unavailable/off.
+  if (pendingConflict) {
+    return { state: 'conflict', account: syncAccount ?? undefined, remoteCounts: pendingConflict.counts }
+  }
+  if (lastSyncError) {
+    return { state: 'error', detail: lastSyncError, account: syncAccount ?? undefined }
+  }
+  if (mode === 'instant') {
+    const db = backend.getDb()
+    return {
+      state: 'on',
+      account: db.settings.email ?? syncAccount ?? undefined,
+      detail: uploadDetail ?? undefined,
+      remoteCounts: {
+        routines: db.routines.length,
+        workouts: db.sessions.filter((s) => s.status === 'completed').length,
+      },
+    }
+  }
+  if (pendingInstant) {
+    return { state: 'connecting', account: syncAccount ?? undefined }
+  }
+  return { state: hasInstant ? 'off' : 'unavailable' }
+}
+
+/**
+ * Current sync status. Memoized between notifications so the returned reference
+ * is stable (required by `useSyncExternalStore` — a fresh object every call
+ * would loop). `notify()` clears the cache on any store change.
+ */
+export function getSyncStatus(): SyncStatus {
+  if (!statusCache) statusCache = computeSyncStatus()
+  return statusCache
+}
+
+/** React binding: re-renders on any store/sync-status change. */
+export function useSyncStatus(): SyncStatus {
+  return useSyncExternalStore(subscribe, getSyncStatus, getSyncStatus)
+}
+
+/**
+ * Re-attempt sync after an error or a stuck 'connecting'. Idempotent and safe to
+ * call from a Settings button. If the instant backend is already live we just
+ * clear a transient error (its optimistic write already retries under the hood);
+ * if a subscription exists but never delivered, we re-open the connecting window;
+ * otherwise we start the whole enableSync flow again.
+ */
+export function retrySync(): void {
+  if (mode === 'instant') {
+    if (lastSyncError) {
+      lastSyncError = null
+      notify()
+    }
+    return
+  }
+  if (syncInst) {
+    // Subscription is live but the first snapshot never arrived — re-arm the window.
+    beginConnecting(syncAccount)
+    return
+  }
+  if (hasInstant && syncUserId != null) {
+    pendingInstant = false
+    enableSync(syncUserId, syncAccount)
+  }
+}
+
 /** True once the instant backend is the active one (post sign-in). */
 export function usingInstant(): boolean {
   return mode === 'instant'
@@ -96,6 +255,10 @@ function activate(inst: Backend, snapshot: Db): void {
   mode = 'instant'
   pendingInstant = false
   pendingConflict = null
+  lastSyncError = null
+  syncInst = inst
+  syncAccount = snapshot.settings.email ?? syncAccount
+  clearConnectTimer()
   clearConflictScratch()
   notify()
 }
@@ -129,6 +292,15 @@ function onFirstRemote(inst: Backend, remote: Db, localSnapshot: Db, email: stri
   if (email && merged.settings.email == null) {
     merged = { ...merged, settings: { ...merged.settings, email } }
   }
+  // DIAGNOSTIC HONESTY: we only reach here from a SUCCESSFUL first snapshot (the
+  // subscription's error path never calls this), so an empty remote is genuinely
+  // "empty-but-healthy", NOT permission-hidden. Record which of the two happened
+  // so the owner's exact symptom (empty account vs a fresh device) is
+  // distinguishable after the fact. A subscription error would instead surface as
+  // state 'error' via reportSyncError.
+  uploadDetail = isMeaningful(localSnapshot)
+    ? "This account had no data yet — this device's data was uploaded to it."
+    : 'New account — nothing to sync yet. Data added here will sync from now on.'
   activate(inst, merged)
 }
 
@@ -141,14 +313,21 @@ function onFirstRemote(inst: Backend, remote: Db, localSnapshot: Db, email: stri
  */
 export function enableSync(userId: string, email: string | null): void {
   if (!hasInstant || mode === 'instant' || pendingInstant) return
-  pendingInstant = true
+  syncUserId = userId
+  beginConnecting(email)
   const localSnapshot = backend.getDb()
   setUserId(userId)
-  void import('./backend/instant').then(({ createInstantBackend }) => {
-    const inst = createInstantBackend(notify, (remote) =>
-      onFirstRemote(inst, remote, localSnapshot, email),
-    )
-  })
+  void import('./backend/instant')
+    .then(({ createInstantBackend }) => {
+      const inst = createInstantBackend(
+        notify,
+        (remote) => onFirstRemote(inst, remote, localSnapshot, email),
+        // Subscription/transact errors surface as the 'error' status.
+        (err, kind) => reportSyncError(err, kind),
+      )
+      syncInst = inst
+    })
+    .catch((err: unknown) => reportSyncError(err, 'query'))
 }
 
 /**
@@ -174,6 +353,12 @@ export function resolveSyncConflictCancel(): void {
   setUserId(null)
   pendingConflict = null
   pendingInstant = false
+  clearConnectTimer()
+  lastSyncError = null
+  syncAccount = null
+  syncUserId = null
+  syncInst = null
+  uploadDetail = null
   clearConflictScratch()
   notify()
 }
@@ -188,6 +373,28 @@ export function __enableSyncForTest(inst: Backend, remote: Db, email: string | n
   const localSnapshot = backend.getDb()
   setUserId('test-user-id')
   onFirstRemote(inst, remote, localSnapshot, email)
+}
+
+/**
+ * Test seam: enter the 'connecting' phase (no snapshot delivered yet), arming the
+ * connect timeout via the injected timer. Pass a fake `inst` to also let
+ * `retrySync` re-arm the connecting window as it would against a live but
+ * silent subscription.
+ */
+export function __beginConnectingForTest(email: string | null, inst?: Backend): void {
+  syncUserId = 'test-user-id'
+  syncInst = inst ?? null
+  beginConnecting(email)
+}
+
+/** Test seam: deliver the first remote snapshot to a connecting machine. */
+export function __deliverRemoteForTest(inst: Backend, remote: Db, email: string | null): void {
+  onFirstRemote(inst, remote, backend.getDb(), email)
+}
+
+/** Test seam: report a subscription/transact error into the status machine. */
+export function __reportSyncErrorForTest(err: unknown, kind: 'query' | 'transact'): void {
+  reportSyncError(err, kind)
 }
 
 /** Current snapshot (stable reference until the next change). */
@@ -230,6 +437,12 @@ export function signOut(): void {
     backend = localBackend
     mode = 'local'
     pendingInstant = false
+    clearConnectTimer()
+    lastSyncError = null
+    syncAccount = null
+    syncUserId = null
+    syncInst = null
+    uploadDetail = null
     setUserId(null)
     notify()
   } else {

@@ -104,7 +104,15 @@ function diffArray(
       before as Record<string, unknown>,
       row as Record<string, unknown>,
     )
-    if (Object.keys(changed).length > 0) ops.push({ entity, id, op: 'update', fields: changed })
+    // Stamp `owner` on updates too, not just creates. The dashboard rule is
+    // `update: auth.id == newData.owner`, and InstantDB's `newData` is the PATCH
+    // being applied (the docs: "the changes that are being made to the object"),
+    // NOT the merged row — so an update that omits `owner` has `newData.owner`
+    // undefined and is silently rejected. Including it (redundant but harmless,
+    // it equals the existing value) satisfies the rule under either evaluation
+    // semantics and never changes what the row stores.
+    if (Object.keys(changed).length > 0)
+      ops.push({ entity, id, op: 'update', fields: { ...changed, owner } })
   }
 
   for (const id of prevById.keys()) {

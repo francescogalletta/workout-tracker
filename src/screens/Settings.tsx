@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { updateSettings } from '../data/mutations'
-import { hasInstant, signOut, useDb } from '../data/store'
+import { retrySync, signOut, type SyncStatus, useDb, useSyncStatus } from '../data/store'
 import type { AppSettings } from '../data/types'
 import { navigate } from '../router'
 
@@ -18,10 +18,19 @@ import { navigate } from '../router'
 
 export type SyncState = 'unavailable' | 'off' | 'on'
 
-/** Pure state selector for the Sync section — unit-tested without a DOM. */
+/**
+ * Legacy pure selector for the coarse three-state view. Retained for the
+ * signed-in/out/unavailable copy checks; the live section now renders from the
+ * richer `SyncStatus` machine in the store (connecting/error/conflict too).
+ */
 export function syncState(syncAvailable: boolean, email: string | null): SyncState {
   if (!syncAvailable) return 'unavailable'
   return email != null ? 'on' : 'off'
+}
+
+/** "3 routines" / "1 workout" pluralization for the count line. */
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
 }
 
 /** Row card wrapper (filled-surface in Ember, hairline outline in Volt). */
@@ -75,11 +84,36 @@ function SettingChip({
   )
 }
 
-export function Settings({ syncAvailable = hasInstant }: { syncAvailable?: boolean } = {}) {
+/** Quiet, uppercase action button in the sync-section visual language. */
+function QuietAction({
+  label,
+  onClick,
+  tone = 'sec',
+}: {
+  label: string
+  onClick: () => void
+  tone?: 'sec' | 'mut'
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-12 cursor-pointer items-center justify-center rounded-rs border border-stepbd bg-stepbg px-[14px] text-[11px] font-bold tracking-[0.08em] uppercase ${
+        tone === 'mut' ? 'text-mut' : 'text-sec'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+export function Settings({ status: statusOverride }: { status?: SyncStatus } = {}) {
   const db = useDb()
   const s = db.settings
   const set = (patch: Partial<AppSettings>) => updateSettings(patch)
-  const sync = syncState(syncAvailable, s.email)
+  // Live sync status from the store machine; overridable for render tests.
+  const liveStatus = useSyncStatus()
+  const status = statusOverride ?? liveStatus
 
   return (
     <div
@@ -189,7 +223,7 @@ export function Settings({ syncAvailable = hasInstant }: { syncAvailable?: boole
             <div className="h-px flex-1 bg-bd" />
           </div>
 
-          {sync === 'unavailable' && (
+          {status.state === 'unavailable' && (
             <Row>
               <div className="text-[11px] leading-[1.6] tracking-[0.03em] text-dim">
                 Sync unavailable · no backend configured
@@ -197,7 +231,7 @@ export function Settings({ syncAvailable = hasInstant }: { syncAvailable?: boole
             </Row>
           )}
 
-          {sync === 'off' && (
+          {status.state === 'off' && (
             <Row column>
               <div className="flex flex-col gap-[4px]">
                 <div className="text-[11px] font-bold tracking-[0.1em] text-tx uppercase">
@@ -217,31 +251,100 @@ export function Settings({ syncAvailable = hasInstant }: { syncAvailable?: boole
             </Row>
           )}
 
-          {sync === 'on' && (
-            <Row>
+          {status.state === 'connecting' && (
+            <Row column>
               <div className="flex flex-col gap-[3px]">
-                <div className="text-[12px] tracking-[0.03em] text-sec">{s.email}</div>
-                <div className="text-[10px] tracking-[0.06em] text-dim uppercase">
-                  Synced · magic-code sign-in
+                {status.account && (
+                  <div className="text-[12px] tracking-[0.03em] text-sec">{status.account}</div>
+                )}
+                <div className="text-[11px] font-bold tracking-[0.1em] text-tx uppercase">
+                  Connecting…
+                </div>
+                <div className="text-[10px] leading-[1.6] tracking-[0.06em] text-mut">
+                  On this device · reaching your account
                 </div>
               </div>
-              <button
-                type="button"
+              <QuietAction label="Retry sync" onClick={() => retrySync()} />
+            </Row>
+          )}
+
+          {status.state === 'conflict' && (
+            <Row column>
+              <div className="flex flex-col gap-[3px]">
+                <div className="text-[11px] font-bold tracking-[0.1em] text-tx uppercase">
+                  Account data found
+                </div>
+                <div className="text-[10px] leading-[1.6] tracking-[0.03em] text-mut">
+                  Resolve the prompt to finish signing in.
+                </div>
+              </div>
+            </Row>
+          )}
+
+          {status.state === 'error' && (
+            <Row column>
+              <div className="flex flex-col gap-[3px]">
+                {status.account && (
+                  <div className="text-[12px] tracking-[0.03em] text-sec">{status.account}</div>
+                )}
+                <div className="text-[11px] font-bold tracking-[0.1em] text-tx uppercase">
+                  Sync problem
+                </div>
+                <div className="text-[10px] tracking-[0.06em] text-dim uppercase">
+                  On this device
+                </div>
+                {status.detail && (
+                  <div className="text-[10px] leading-[1.6] tracking-[0.03em] text-acc">
+                    {status.detail}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-[6px]">
+                <QuietAction label="Retry sync" onClick={() => retrySync()} />
+                <QuietAction label="Sign out" tone="mut" onClick={() => signOut()} />
+              </div>
+            </Row>
+          )}
+
+          {status.state === 'on' && (
+            <Row column>
+              <div className="flex flex-col gap-[3px]">
+                {status.account && (
+                  <div className="text-[12px] tracking-[0.03em] text-sec">{status.account}</div>
+                )}
+                <div className="text-[10px] tracking-[0.06em] text-dim uppercase">
+                  Cloud sync on
+                </div>
+                {status.remoteCounts && (
+                  <div className="text-[10px] tracking-[0.03em] text-mut">
+                    {plural(status.remoteCounts.routines, 'routine')} ·{' '}
+                    {plural(status.remoteCounts.workouts, 'workout')} in account
+                  </div>
+                )}
+                {status.detail && (
+                  <div className="text-[10px] leading-[1.6] tracking-[0.03em] text-dim">
+                    {status.detail}
+                  </div>
+                )}
+              </div>
+              <QuietAction
+                label="Sign out"
+                tone="mut"
                 onClick={() => {
                   // Snapshots the merged Db into localStorage, ends the InstantDB
                   // session, and switches back to local — data stays, app stays
                   // usable. No redirect: settings just flips to the "Sync off" row.
                   signOut()
                 }}
-                className="flex h-12 cursor-pointer items-center rounded-rs border border-stepbd bg-stepbg px-[14px] text-[11px] font-bold tracking-[0.08em] text-mut uppercase"
-              >
-                Sign out
-              </button>
+              />
             </Row>
           )}
 
           <div className="pt-[14px] text-center text-[10px] tracking-[0.06em] text-dim uppercase">
-            Lift v1 · {sync === 'on' ? 'data syncs automatically when online' : 'offline-first · sign in to sync'}
+            Lift v1 ·{' '}
+            {status.state === 'on'
+              ? 'data syncs automatically when online'
+              : 'offline-first · sign in to sync'}
           </div>
         </div>
       </div>

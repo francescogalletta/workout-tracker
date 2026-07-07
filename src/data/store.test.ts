@@ -189,3 +189,119 @@ describe('store — sign-in conflict state machine', () => {
     expect(store.getDb().settings.email).toBe('me@x.com')
   })
 })
+
+describe('store — sync status machine', () => {
+  let storage: ReturnType<typeof memoryStorage>
+  // Captures the connect-timeout callback so tests can fire it deterministically.
+  let fireTimeout: (() => void) | null
+
+  beforeEach(() => {
+    vi.resetModules()
+    storage = memoryStorage()
+    vi.stubGlobal('localStorage', storage)
+    fireTimeout = null
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  async function loadStoreWithFakeTimer() {
+    const store = await import('./store')
+    store.__setSyncTimers(
+      (fn) => {
+        fireTimeout = fn
+        return 1
+      },
+      () => {
+        fireTimeout = null
+      },
+    )
+    return store
+  }
+
+  it('resting state is unavailable in the test env (no backend configured)', async () => {
+    const store = await import('./store')
+    expect(store.getSyncStatus().state).toBe('unavailable')
+  })
+
+  it('off→connecting→on: connecting exposes the account, on exposes counts + upload diagnostic', async () => {
+    const store = await loadStoreWithFakeTimer()
+    // Seed meaningful local so the empty-but-healthy remote triggers upload-local.
+    store.update((db) => ({ ...db, routines: [routine('r-local', 'Local')] }))
+
+    store.__beginConnectingForTest('me@x.com')
+    let status = store.getSyncStatus()
+    expect(status.state).toBe('connecting')
+    expect(status.account).toBe('me@x.com')
+
+    const inst = fakeBackend(emptyDb())
+    store.__deliverRemoteForTest(inst, emptyDb(), 'me@x.com') // empty-but-healthy remote
+
+    status = store.getSyncStatus()
+    expect(status.state).toBe('on')
+    expect(status.account).toBe('me@x.com')
+    expect(status.remoteCounts).toEqual({ routines: 1, workouts: 0 })
+    // Diagnostic honesty: the account was empty (not permission-hidden) → say so.
+    expect(status.detail).toContain('had no data')
+  })
+
+  it('on: workouts count reflects COMPLETED sessions only', async () => {
+    const store = await loadStoreWithFakeTimer()
+    const inst = fakeBackend(emptyDb())
+    const remote: Db = {
+      ...emptyDb(),
+      routines: [routine('r1', 'A')],
+      sessions: [
+        { id: 's1', routineId: 'r1', routineName: 'A', status: 'completed', startedAt: 1, finishedAt: 2 },
+        { id: 's2', routineId: 'r1', routineName: 'A', status: 'active', startedAt: 3, finishedAt: null },
+      ],
+    }
+    store.__beginConnectingForTest('me@x.com')
+    store.__deliverRemoteForTest(inst, remote, 'me@x.com') // remote meaningful, local fresh → adopt
+    const status = store.getSyncStatus()
+    expect(status.state).toBe('on')
+    expect(status.remoteCounts).toEqual({ routines: 1, workouts: 1 })
+  })
+
+  it('connecting→error when the first snapshot times out', async () => {
+    const store = await loadStoreWithFakeTimer()
+    store.__beginConnectingForTest('me@x.com')
+    expect(store.getSyncStatus().state).toBe('connecting')
+
+    expect(fireTimeout).toBeTypeOf('function')
+    fireTimeout!() // 12s elapsed with no snapshot
+
+    const status = store.getSyncStatus()
+    expect(status.state).toBe('error')
+    expect(status.account).toBe('me@x.com')
+    expect(status.detail).toContain('timed out')
+  })
+
+  it('error→connecting on retry (live but silent subscription re-armed)', async () => {
+    const store = await loadStoreWithFakeTimer()
+    const inst = fakeBackend(emptyDb())
+    store.__beginConnectingForTest('me@x.com', inst)
+    fireTimeout!()
+    expect(store.getSyncStatus().state).toBe('error')
+
+    store.retrySync()
+    expect(store.getSyncStatus().state).toBe('connecting')
+    expect(store.getSyncStatus().account).toBe('me@x.com')
+  })
+
+  it('a reported subscription error surfaces as the error state', async () => {
+    const store = await loadStoreWithFakeTimer()
+    store.__beginConnectingForTest('me@x.com')
+    store.__reportSyncErrorForTest({ message: 'permission denied' }, 'query')
+    const status = store.getSyncStatus()
+    expect(status.state).toBe('error')
+    expect(status.detail).toContain('permission denied')
+  })
+
+  it('getSyncStatus returns a stable reference between notifications', async () => {
+    const store = await import('./store')
+    const a = store.getSyncStatus()
+    const b = store.getSyncStatus()
+    expect(a).toBe(b) // memoized — required by useSyncExternalStore
+    store.update((db) => ({ ...db, settings: { ...db.settings, defaultRestSec: 120 } }))
+    expect(store.getSyncStatus()).not.toBe(a) // invalidated on change
+  })
+})
