@@ -1,7 +1,7 @@
 import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { resetDb } from '../data/store'
-import { SignIn, isValidCode, isValidEmail, nextStep, normalizeCode } from './SignIn'
+import { SignIn, friendlyAuthError, isValidCode, isValidEmail, nextStep, normalizeCode } from './SignIn'
 
 beforeEach(() => resetDb())
 
@@ -71,5 +71,18 @@ describe('SignIn render', () => {
     expect(html).toContain('Sync unavailable')
     expect(html).toContain('Back to Settings')
     expect(html).not.toContain('Send code') // no fake-auth flow
+  })
+})
+
+describe('friendlyAuthError', () => {
+  it('maps record-not-found to actionable copy', () => {
+    const msg = friendlyAuthError('Record not found: app-user-magic-code', 'fallback')
+    expect(msg).toContain('no longer valid')
+    expect(msg).toContain('newest email')
+  })
+
+  it('passes through other server messages and falls back when absent', () => {
+    expect(friendlyAuthError('Too many attempts', 'fallback')).toBe('Too many attempts')
+    expect(friendlyAuthError(null, 'fallback')).toBe('fallback')
   })
 })

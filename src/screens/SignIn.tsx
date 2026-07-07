@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { AuthApi } from '../auth'
 import { updateSettings } from '../data/mutations'
 import { navigate } from '../router'
@@ -57,6 +57,18 @@ function errMessage(err: unknown): string | null {
   return typeof body?.message === 'string' ? body.message : null
 }
 
+/**
+ * Map raw InstantDB auth errors to gym-legible copy. "Record not found:
+ * app-user-magic-code" = the submitted code matches no live record (expired,
+ * already used, or superseded by a newer "send").
+ */
+export function friendlyAuthError(raw: string | null, fallback: string): string {
+  if (raw && raw.toLowerCase().includes('record not found')) {
+    return 'That code is no longer valid — codes expire and each new request replaces the old one. Use the code from the newest email, or request a fresh one.'
+  }
+  return raw ?? fallback
+}
+
 const eyebrow = 'text-[11px] tracking-[0.18em] text-mut uppercase'
 const accentBtn =
   'tt-label flex h-[68px] w-full cursor-pointer items-center justify-center rounded-rl border-0 bg-acc text-[16px] font-extrabold tracking-[0.08em] text-onacc'
@@ -101,20 +113,31 @@ function SignInFlow({ authApi }: { authApi: AuthApi }) {
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // In-flight guard: a double-tap on "send" fires two codes (instantly
+  // invalidating the first email's code → "Record not found"), and a
+  // double-tap on submit consumes the code then errors. One call at a time.
+  const busy = useRef(false)
 
   function sendCode() {
-    if (!isValidEmail(email)) return
+    if (!isValidEmail(email) || busy.current) return
+    busy.current = true
     setError(null)
     // Switch instantly (no spinner); magic code sends in the background.
     setStep('code')
-    authApi.sendMagicCode(email.trim()).catch((err: unknown) => {
-      setStep('email')
-      setError(errMessage(err) ?? "Couldn't send a code to that address.")
-    })
+    authApi
+      .sendMagicCode(email.trim())
+      .catch((err: unknown) => {
+        setStep('email')
+        setError(friendlyAuthError(errMessage(err), "Couldn't send a code to that address."))
+      })
+      .finally(() => {
+        busy.current = false
+      })
   }
 
   function signIn() {
-    if (!isValidCode(code)) return
+    if (!isValidCode(code) || busy.current) return
+    busy.current = true
     // Verify server-side; only advance on success.
     setError(null)
     authApi
@@ -122,7 +145,10 @@ function SignInFlow({ authApi }: { authApi: AuthApi }) {
       .then(() => setStep('done'))
       .catch((err: unknown) => {
         setCode('')
-        setError(errMessage(err) ?? "That code didn't work — try again.")
+        setError(friendlyAuthError(errMessage(err), "That code didn't work — try again."))
+      })
+      .finally(() => {
+        busy.current = false
       })
   }
 
