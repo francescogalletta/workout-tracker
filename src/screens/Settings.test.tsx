@@ -93,7 +93,7 @@ describe('Settings sync section — status-driven states', () => {
     expect(html).toContain('had no data')
   })
 
-  it('error → detail line + Retry sync + "On this device"', () => {
+  it('error (generic) → action-first copy + raw Details + Retry/Sign out', () => {
     const html = renderToString(
       <Settings
         status={{
@@ -103,10 +103,30 @@ describe('Settings sync section — status-driven states', () => {
         }}
       />,
     )
-    expect(html).toContain('Sync problem')
+    expect(html).toContain('Sync hit a problem')
     expect(html).toContain('On this device')
+    // Action-first body + raw message kept for bug reports.
+    expect(html).toContain('safe on this device')
+    expect(html).toContain('Details:')
     expect(html).toContain('Sync timed out')
     expect(html).toContain('Retry sync')
+    expect(html).toContain('Sign out')
+  })
+
+  it('error (code crash) → "app hit a bug" copy, raw message in Details', () => {
+    const html = renderToString(
+      <Settings
+        status={{
+          state: 'error',
+          account: 'lifter@example.com',
+          detail: "Cannot access 'd' before initialization",
+        }}
+      />,
+    )
+    expect(html).toContain('The app hit a bug syncing')
+    expect(html).toContain('safe on this device')
+    // Raw message kept as a secondary Details line (apostrophes get HTML-escaped).
+    expect(html).toContain('before initialization')
   })
 })
 
