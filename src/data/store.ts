@@ -108,6 +108,55 @@ export function __setSyncTimers(schedule: Scheduler, cancel: (handle: unknown) =
   cancelScheduled = cancel
 }
 
+// ── Deferred-import settle detection ────────────────────────────────────────
+// `?plan`/`?demo` writes must land on the ACCOUNT when signed in, not on the
+// local backend where the conflict flow could discard them. `runWhenSettled`
+// (below) parks the write until the sync session settles. Two extra signals:
+//
+//   instantConfigured — mirrors `hasInstant`: is an InstantDB backend wired for
+//     this page load? When false the local backend is the only one, so the
+//     write runs immediately. A test seam flips it because `hasInstant` is
+//     always false under vitest.
+//   authResolved — has InstantDB's `useAuth` finished its initial load?
+//     Distinguishes a transient boot 'off' (auth still resolving, wait) from a
+//     real signed-out 'off' (import locally). Set by `AppInstant` once
+//     `useAuth().isLoading` flips false. Immediately true when !instantConfigured.
+let instantConfigured = hasInstant
+let authResolved = !hasInstant
+
+/** How long to wait for the session to settle before importing locally anyway. */
+export const SETTLE_FALLBACK_MS = 20_000
+
+// Separate injectable timer for the settle fallback so a test can fire it
+// without disturbing the connect-timeout timer above.
+let scheduleSettle: Scheduler = (fn, ms) => setTimeout(fn, ms)
+let cancelSettle: (handle: unknown) => void = (h) =>
+  clearTimeout(h as ReturnType<typeof setTimeout>)
+
+/** Test seam: swap the settle-fallback timer for a fake the test can fire. */
+export function __setSettleTimer(schedule: Scheduler, cancel: (handle: unknown) => void): void {
+  scheduleSettle = schedule
+  cancelSettle = cancel
+}
+
+/** Test seam: pretend an InstantDB backend is (not) configured this load. */
+export function __setInstantConfiguredForTest(value: boolean): void {
+  instantConfigured = value
+  authResolved = !value
+}
+
+/**
+ * Signal that InstantDB auth has resolved its initial load (session found or
+ * definitively signed out). Called by `AppInstant` when `useAuth().isLoading`
+ * flips false. Lets a parked `runWhenSettled` tell a real signed-out 'off' from
+ * a transient boot 'off'. Idempotent; notifies so parked evaluators re-run.
+ */
+export function markAuthResolved(): void {
+  if (authResolved) return
+  authResolved = true
+  notify()
+}
+
 let lastSyncError: string | null = null
 let syncAccount: string | null = null
 let syncUserId: string | null = null
@@ -188,7 +237,9 @@ function computeSyncStatus(): SyncStatus {
   if (pendingInstant) {
     return { state: 'connecting', account: syncAccount ?? undefined }
   }
-  return { state: hasInstant ? 'off' : 'unavailable' }
+  // `instantConfigured` mirrors `hasInstant` in production; a test seam flips it
+  // so the idle 'off' state (and the deferral path) is exercisable under vitest.
+  return { state: instantConfigured ? 'off' : 'unavailable' }
 }
 
 /**
@@ -204,6 +255,54 @@ export function getSyncStatus(): SyncStatus {
 /** React binding: re-renders on any store/sync-status change. */
 export function useSyncStatus(): SyncStatus {
   return useSyncExternalStore(subscribe, getSyncStatus, getSyncStatus)
+}
+
+/**
+ * Run `fn` exactly once, when the sync session has settled enough that a write
+ * lands on the right backend. Used for the boot-time `?plan`/`?demo` imports so
+ * a signed-in device's import goes to the ACCOUNT (via the instant backend)
+ * rather than to local, where the sign-in conflict flow could discard it.
+ *
+ *   no InstantDB configured  → run now (local is the only backend).
+ *   status 'on'              → run now (writes go to the account, idempotent).
+ *   status 'conflict'        → wait; fires later when it resolves to 'on'
+ *                              (adopt) or to a resolved 'off' (cancel/sign-out).
+ *   status 'off' + resolved  → run now (genuinely signed out → import locally).
+ *   status 'off', unresolved → wait (transient boot 'off', auth still loading).
+ *   status 'connecting'      → wait.
+ *   status 'error'           → run now locally (data exists on-device; the
+ *                              status machine already surfaces the error).
+ *
+ * Guards: fires at most once, unsubscribes after firing, and a ~20s fallback
+ * imports locally if nothing ever settles.
+ */
+export function runWhenSettled(fn: () => void): void {
+  if (!instantConfigured) {
+    fn()
+    return
+  }
+  let fired = false
+  let unsub: (() => void) | null = null
+  const fire = (): void => {
+    if (fired) return
+    fired = true
+    if (fallback != null) {
+      cancelSettle(fallback)
+      fallback = null
+    }
+    unsub?.()
+    fn()
+  }
+  const evaluate = (): void => {
+    const state = getSyncStatus().state
+    if (state === 'on' || state === 'error' || (state === 'off' && authResolved)) fire()
+  }
+  let fallback: unknown = scheduleSettle(() => {
+    fallback = null
+    fire()
+  }, SETTLE_FALLBACK_MS)
+  unsub = subscribe(evaluate)
+  evaluate() // handle an already-settled state synchronously
 }
 
 /**

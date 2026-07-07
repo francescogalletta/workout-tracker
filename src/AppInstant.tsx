@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { Shell } from './App'
 import type { AuthApi } from './auth'
 import { idb } from './data/backend/instantClient'
-import { enableSync } from './data/store'
+import { enableSync, markAuthResolved } from './data/store'
 
 /**
  * InstantSync shell (lazy-loaded — only ever imported in a real browser build
@@ -18,11 +18,19 @@ import { enableSync } from './data/store'
  * ids make it a no-op against an existing account).
  */
 export default function InstantSync() {
-  const { user } = idb.useAuth()
+  const { isLoading, user } = idb.useAuth()
 
   useEffect(() => {
+    // Wait for auth's initial load to finish before reporting the session as
+    // resolved — a parked boot-time import (`runWhenSettled`) uses this to tell
+    // a transient boot 'off' from a real signed-out 'off'.
+    if (isLoading) return
+    // Start sync BEFORE marking auth resolved: enableSync flips the status to
+    // 'connecting' first, so a parked import never sees a signed-out 'off' for a
+    // signed-in user.
     if (user) enableSync(user.id, user.email ?? null)
-  }, [user])
+    markAuthResolved()
+  }, [isLoading, user])
 
   const authApi: AuthApi = useMemo(
     () => ({

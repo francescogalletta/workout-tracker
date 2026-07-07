@@ -305,3 +305,126 @@ describe('store — sync status machine', () => {
     expect(store.getSyncStatus()).not.toBe(a) // invalidated on change
   })
 })
+
+describe('store — runWhenSettled (deferred boot imports)', () => {
+  let storage: ReturnType<typeof memoryStorage>
+  // Captures the settle-fallback fn so a test can fire the ~20s outer fallback.
+  let fireSettle: (() => void) | null
+  let settleCancelled: boolean
+
+  beforeEach(() => {
+    vi.resetModules()
+    storage = memoryStorage()
+    vi.stubGlobal('localStorage', storage)
+    fireSettle = null
+    settleCancelled = false
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  async function loadStore(instantConfigured: boolean) {
+    const store = await import('./store')
+    // Keep the status machine's real connect timer out of these tests.
+    store.__setSyncTimers(
+      () => 1,
+      () => {},
+    )
+    store.__setSettleTimer(
+      (fn) => {
+        fireSettle = fn
+        return 2
+      },
+      () => {
+        settleCancelled = true
+        fireSettle = null
+      },
+    )
+    store.__setInstantConfiguredForTest(instantConfigured)
+    return store
+  }
+
+  it('fires immediately when no InstantDB is configured', async () => {
+    const store = await loadStore(false)
+    let ran = 0
+    store.runWhenSettled(() => ran++)
+    expect(ran).toBe(1)
+  })
+
+  it('with InstantDB configured, defers past a transient boot off (auth unresolved)', async () => {
+    const store = await loadStore(true)
+    let ran = 0
+    store.runWhenSettled(() => ran++)
+    // status is 'off' but auth has NOT resolved → transient boot off → wait.
+    expect(store.getSyncStatus().state).toBe('off')
+    expect(ran).toBe(0)
+  })
+
+  it('fires locally once auth resolves to a real signed-out off', async () => {
+    const store = await loadStore(true)
+    let ran = 0
+    store.runWhenSettled(() => ran++)
+    expect(ran).toBe(0)
+    store.markAuthResolved() // useAuth resolved, no session → genuine off
+    expect(ran).toBe(1)
+    expect(settleCancelled).toBe(true) // fallback disarmed after firing
+  })
+
+  it('fires on the account backend once status reaches on', async () => {
+    const store = await loadStore(true)
+    let ran = 0
+    store.runWhenSettled(() => {
+      ran++
+      // The import runs while the instant backend is active.
+      expect(store.usingInstant()).toBe(true)
+    })
+    // Signed-in user: connecting first (must NOT fire), then first remote → on.
+    store.__beginConnectingForTest('me@x.com')
+    store.markAuthResolved() // signed-in path resolves auth too
+    expect(ran).toBe(0) // still connecting
+    const inst = fakeBackend(emptyDb())
+    store.__deliverRemoteForTest(inst, emptyDb(), 'me@x.com') // fresh remote → on
+    expect(store.getSyncStatus().state).toBe('on')
+    expect(ran).toBe(1)
+  })
+
+  it('waits through a conflict and fires when it resolves to on (adopt)', async () => {
+    const store = await loadStore(true)
+    let ran = 0
+    store.runWhenSettled(() => ran++)
+    // Local fresh here (import deferred), but simulate the conflict path anyway
+    // to prove the helper parks on 'conflict'.
+    store.update((db) => ({ ...db, routines: [routine('r-local', 'Local')] }))
+    store.__beginConnectingForTest('me@x.com')
+    store.markAuthResolved()
+    const inst = fakeBackend(emptyDb())
+    store.__deliverRemoteForTest(inst, { ...emptyDb(), routines: [routine('r-remote', 'Remote')] }, 'me@x.com')
+    expect(store.getSyncStatus().state).toBe('conflict')
+    expect(ran).toBe(0) // parked while the modal is up
+    store.resolveSyncConflictAdopt()
+    expect(store.getSyncStatus().state).toBe('on')
+    expect(ran).toBe(1)
+  })
+
+  it('fires exactly once across further status changes', async () => {
+    const store = await loadStore(true)
+    let ran = 0
+    store.runWhenSettled(() => ran++)
+    store.markAuthResolved() // fires (resolved off)
+    expect(ran).toBe(1)
+    // Subsequent transitions must not re-fire (unsubscribed after firing).
+    store.__beginConnectingForTest('me@x.com')
+    const inst = fakeBackend(emptyDb())
+    store.__deliverRemoteForTest(inst, emptyDb(), 'me@x.com')
+    expect(ran).toBe(1)
+  })
+
+  it('outer fallback fires a local import if nothing ever settles', async () => {
+    const store = await loadStore(true)
+    let ran = 0
+    store.runWhenSettled(() => ran++)
+    // Auth never resolves, sync never connects.
+    expect(ran).toBe(0)
+    expect(fireSettle).toBeTypeOf('function')
+    fireSettle!() // ~20s elapsed
+    expect(ran).toBe(1)
+  })
+})
