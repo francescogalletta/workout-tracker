@@ -6,6 +6,7 @@ import { getDb, resetDb, update } from '../data/store'
 import type { Db } from '../data/types'
 import {
   addItem,
+  deleteRoutine,
   itemSummary,
   moveItem,
   normalizeRotation,
@@ -210,5 +211,49 @@ describe('render smoke', () => {
     ensureCatalog()
     const html = renderToString(<RoutineEditor id="nope" />)
     expect(html).toBe('')
+  })
+})
+
+describe('deleteRoutine', () => {
+  it('removes the routine and its items, keeping sessions and setLogs', () => {
+    seedDemoData(T0)
+    const before = db()
+    const sessions = before.sessions.length
+    const logs = before.setLogs.length
+    expect(routineById(before, 'r-push-a')).not.toBeNull()
+    expect(before.routineItems.some((it) => it.routineId === 'r-push-a')).toBe(true)
+
+    update((d) => deleteRoutine(d, 'r-push-a'))
+
+    const after = db()
+    expect(routineById(after, 'r-push-a')).toBeNull()
+    expect(after.routineItems.some((it) => it.routineId === 'r-push-a')).toBe(false)
+    expect(after.sessions.length).toBe(sessions) // history untouched
+    expect(after.setLogs.length).toBe(logs)
+  })
+
+  it('renumbers the remaining rotation densely', () => {
+    seedDemoData(T0)
+    const rotBefore = rotationRoutines(db()).map((r) => r.id)
+    const victim = rotBefore[1]
+    update((d) => deleteRoutine(d, victim))
+    const rot = rotationRoutines(db())
+    expect(rot.map((r) => r.id)).toEqual(rotBefore.filter((r) => r !== victim))
+    expect(rot.map((r) => r.cycleOrder)).toEqual(rot.map((_, i) => i))
+  })
+
+  it('leaves other routines and their items untouched', () => {
+    seedDemoData(T0)
+    const othersItems = db().routineItems.filter((it) => it.routineId !== 'r-push-a')
+    update((d) => deleteRoutine(d, 'r-push-a'))
+    expect(db().routineItems).toEqual(othersItems)
+  })
+
+  it('deleting a non-rotation routine leaves the rotation unchanged', () => {
+    seedDemoData(T0)
+    const nonRot = db().routines.find((r) => r.cycleOrder === null)!
+    const rotBefore = rotationRoutines(db()).map((r) => r.id)
+    update((d) => deleteRoutine(d, nonRot.id))
+    expect(rotationRoutines(db()).map((r) => r.id)).toEqual(rotBefore)
   })
 })

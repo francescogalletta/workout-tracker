@@ -10,6 +10,7 @@ import {
   type PickerFilter,
 } from '../runner/components/ExercisePicker'
 import { toPickerItem } from '../runner/fromStore'
+import { AccentButton, OutlineButton, Sheet } from '../runner/components/ui'
 import { addToRotation, removeFromRotation } from './routineOps'
 
 /**
@@ -152,6 +153,20 @@ export function setRotation(db: Db, routineId: string, inRotation: boolean): Db 
     routines: inRotation
       ? addToRotation(db.routines, routineId)
       : removeFromRotation(db.routines, routineId),
+  }
+}
+
+/**
+ * Delete a routine and its items. Past sessions and setLogs are kept — they
+ * carry their own routineName snapshot, so history is unaffected (same
+ * principle as discarding a session, SPEC §3). The remaining rotation
+ * renumbers densely via the shared helper.
+ */
+export function deleteRoutine(db: Db, routineId: string): Db {
+  return {
+    ...db,
+    routines: removeFromRotation(db.routines, routineId).filter((r) => r.id !== routineId),
+    routineItems: db.routineItems.filter((it) => it.routineId !== routineId),
   }
 }
 
@@ -334,6 +349,7 @@ export function RoutineEditor({ id }: { id: string }) {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [restOpen, setRestOpen] = useState<string | null>(null)
   const [picker, setPicker] = useState<PickerFilter | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     if (!routine) navigate('/routines')
@@ -519,7 +535,35 @@ export function RoutineEditor({ id }: { id: string }) {
             </div>
           )}
         </div>
+
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="cursor-pointer border-0 bg-transparent p-[22px_0_4px] text-center font-mono text-[11px] tracking-[0.1em] text-dim underline underline-offset-[3px] tt-label"
+        >
+          Delete routine
+        </button>
       </div>
+
+      {confirmDelete && (
+        <Sheet onClose={() => setConfirmDelete(false)} z={50}>
+          <div className="flex flex-col gap-[10px]">
+            <div className="text-[13px] font-extrabold tracking-[0.04em] text-tx tt-label">
+              Delete {routine.name}?
+            </div>
+            <div className="pb-1 text-[12px] text-mut">
+              Past workouts stay in history — only the routine and its plan are removed.
+            </div>
+            <AccentButton
+              label="Delete routine"
+              onClick={() => {
+                update((d) => deleteRoutine(d, id))
+                navigate('/routines')
+              }}
+            />
+            <OutlineButton label="Keep" onClick={() => setConfirmDelete(false)} />
+          </div>
+        </Sheet>
+      )}
 
       {picker && (
         <ExercisePicker
