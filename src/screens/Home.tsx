@@ -36,9 +36,12 @@ export function Home() {
   const firstRun = routines.length === 0
 
   return (
-    <div className="flex min-h-screen justify-center bg-bg font-mono">
-      <div className="box-border flex min-h-screen w-full max-w-[430px] flex-col pt-5 pr-[max(20px,var(--safe-right))] pb-[calc(var(--safe-bottom)+24px)] pl-[max(20px,var(--safe-left))]">
-        <div className="flex flex-1 flex-col justify-center gap-[10px]">
+    <div className="flex justify-center bg-bg font-mono">
+      {/* Fill exactly the space under the sticky nav (100dvh − nav) so Home
+          never scrolls; the whole group centers with the CTA just below the
+          middle of the screen — quick to hit mid-workout. */}
+      <div className="box-border flex min-h-[calc(100dvh-var(--nav-h))] w-full max-w-[430px] flex-col justify-center pt-5 pr-[max(20px,var(--safe-right))] pb-[calc(var(--safe-bottom)+24px)] pl-[max(20px,var(--safe-left))]">
+        <div className="flex flex-col gap-[10px]">
           {firstRun ? (
             <>
               <div className="text-[11px] tracking-[0.18em] text-mut uppercase">Welcome</div>
@@ -59,16 +62,14 @@ export function Home() {
               onChange={() => setSheetOpen(true)}
             />
           ) : null}
-        </div>
 
-        <div className="flex flex-col gap-[18px]">
           {firstRun ? (
             <button
               onClick={() => {
                 const r = createRoutine()
                 navigate(`/routines/${r.id}`)
               }}
-              className="tt-label flex h-[68px] w-full cursor-pointer items-center justify-center rounded-rl border-0 bg-acc font-mono text-[16px] font-extrabold tracking-[0.08em] text-onacc"
+              className="tt-label mt-7 flex h-[68px] w-full cursor-pointer items-center justify-center rounded-rl border-0 bg-acc font-mono text-[16px] font-extrabold tracking-[0.08em] text-onacc"
             >
               Create first routine
             </button>
@@ -78,7 +79,7 @@ export function Home() {
                 startSession(selected)
                 navigate('/run')
               }}
-              className="tt-label flex h-[68px] w-full cursor-pointer items-center justify-center rounded-rl border-0 bg-acc font-mono text-[16px] font-extrabold tracking-[0.08em] text-onacc"
+              className="tt-label mt-7 flex h-[68px] w-full cursor-pointer items-center justify-center rounded-rl border-0 bg-acc font-mono text-[16px] font-extrabold tracking-[0.08em] text-onacc"
             >
               Start workout
             </button>
