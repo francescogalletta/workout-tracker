@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #000; }
+    input::placeholder { color: #6B6B6B; opacity: 1; }
+    @keyframes ovl-up { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  </style>
+</helmet>
+
+<div ref="{{ rootRef }}" style="min-height: 100vh; background: var(--bg, #000000); display: flex; justify-content: center; font-family: var(--f, 'JetBrains Mono', monospace);">
+  <div style="width: 100%; max-width: 430px; display: flex; flex-direction: column; padding: 12px 18px 120px; box-sizing: border-box;" data-comment-anchor="516a7b1564-div">
+
+    <!-- prototype chrome -->
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0 14px; opacity: 0.9;">
+      <div style="font-size: 10px; letter-spacing: 0.2em; color: var(--dim, #4A4A4A); text-transform: uppercase;">Prototype</div>
+      <div style="display: flex; gap: 8px;">
+        <div onClick="{{ toggleTheme }}" style="height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--bds, #333333); color: var(--mut, #6B6B6B); font-size: 11px; letter-spacing: 0.1em; display: flex; align-items: center; cursor: pointer; white-space: nowrap; text-transform: uppercase;">{{ themeLabel }}</div>
+        <div onClick="{{ toggleSound }}" style="height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--bds, #333333); color: var(--mut, #6B6B6B); font-size: 11px; letter-spacing: 0.1em; display: flex; align-items: center; cursor: pointer; white-space: nowrap; text-transform: uppercase;">{{ soundLabel }}</div>
+        <div onClick="{{ demoResume }}" style="height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--bds, #333333); color: var(--mut, #6B6B6B); font-size: 11px; letter-spacing: 0.1em; display: flex; align-items: center; cursor: pointer; white-space: nowrap; text-transform: uppercase;">Resume demo</div>
+      </div>
+    </div>
+
+    <!-- runner header -->
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 6px;">
+      <div style="font-size: 17px; font-weight: 700; letter-spacing: 0.05em; color: var(--tx, #F2F2F2); text-transform: var(--tt, uppercase);">Push A</div>
+      <div style="display: flex; gap: 16px; align-items: baseline;">
+        <div style="font-variant-numeric: tabular-nums; font-size: 13px; color: var(--mut, #6B6B6B);">{{ elapsed }}</div>
+        <div onClick="{{ openReorder }}" style="font-size: 12px; letter-spacing: 0.08em; color: var(--mut, #6B6B6B); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 14px 10px; margin: -14px -10px; text-transform: var(--tt, uppercase);">Order</div>
+        <div onClick="{{ finish }}" style="font-size: 12px; letter-spacing: 0.08em; color: var(--mut, #6B6B6B); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 14px 10px; margin: -14px -10px; text-transform: var(--tt, uppercase);">Finish</div>
+      </div>
+    </div>
+
+    <!-- exercise list -->
+    <sc-for list="{{ exercises }}" as="ex" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <div style="display: flex; gap: 10px; align-items: baseline;">
+            <div style="font-size: 14px; font-weight: 700; color: var(--tx, #F2F2F2); letter-spacing: 0.04em; text-transform: var(--tt, uppercase);">{{ ex.name }}</div>
+            <div style="font-size: 11px; color: var(--dim, #4A4A4A);">{{ ex.scheme }}</div>
+          </div>
+          <sc-if value="{{ ex.showSwap }}" hint-placeholder-val="{{ true }}">
+            <div onClick="{{ ex.swap }}" style="font-size: 11px; letter-spacing: 0.08em; color: var(--dim, #4A4A4A); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 14px 10px; margin: -14px -10px; text-transform: var(--tt, uppercase);">Swap</div>
+          </sc-if>
+        </div>
+
+        <sc-for list="{{ ex.rows }}" as="row" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column;">
+            <sc-if value="{{ row.isDivider }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 10px; padding: 4px 0 2px;">
+                <div style="font-size: 9px; letter-spacing: 0.2em; color: var(--dim, #4A4A4A); text-transform: uppercase; white-space: nowrap;">{{ row.label }}</div>
+                <div style="flex: 1; height: 1px; background: var(--bd, #1C1C1C);"></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ row.isPlain }}" hint-placeholder-val="{{ true }}">
+              <div onClick="{{ row.activate }}" style="display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: {{ row.bg }}; border: 1px solid {{ row.bd }}; border-radius: var(--rs, 4px); cursor: pointer; min-height: 26px;">
+                <div style="font-size: 13px; font-weight: 800; width: 14px; color: {{ row.markColor }};">{{ row.mark }}</div>
+                <div style="font-variant-numeric: tabular-nums; font-size: {{ row.fs }}; letter-spacing: 0.03em; color: {{ row.textColor }}; white-space: pre;">{{ row.text }}</div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ row.isActive }}" hint-placeholder-val="{{ false }}">
+              <div ref="{{ row.cardRef }}" style="background: var(--cardbg, #0A0A0A); border: 1px solid var(--cardbd, #333333); border-radius: var(--rl, 6px); padding: 16px 14px; display: flex; flex-direction: column; gap: 14px;">
+                <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--sec, #9A9A9A); font-weight: 700; text-transform: uppercase;">{{ row.setLabel }}</div>
+
+                <sc-if value="{{ row.isStrength }}" hint-placeholder-val="{{ true }}">
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                  <div onClick="{{ row.wDec1 }}" onPointerDown="{{ holdStart }}" onPointerUp="{{ holdEnd }}" onPointerLeave="{{ holdEnd }}" style="width: 72px; height: 56px; flex-shrink: 0; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none;">{{ row.lblDec1 }}</div>
+                  <div onClick="{{ row.wTap }}" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                    <div style="font-variant-numeric: tabular-nums; font-size: 52px; font-weight: 800; line-height: 1; color: {{ row.wColor }}; border-bottom: 2px dotted var(--dim, #4A4A4A); padding-bottom: 4px;">{{ row.wText }}</div>
+                    <div style="font-size: 10px; letter-spacing: 0.14em; color: var(--mut, #6B6B6B); margin-top: 5px; text-transform: uppercase;">kg</div>
+                  </div>
+                  <div onClick="{{ row.wInc1 }}" onPointerDown="{{ holdStart }}" onPointerUp="{{ holdEnd }}" onPointerLeave="{{ holdEnd }}" style="width: 72px; height: 56px; flex-shrink: 0; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none;">{{ row.lblInc1 }}</div>
+                </div>
+                <sc-if value="{{ row.hasReco }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: stretch;">
+                    <div style="display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 10px 12px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px);">
+                      <div style="font-size: 9px; letter-spacing: 0.16em; color: var(--dim, #4A4A4A); text-transform: uppercase;">Last</div>
+                      <div style="font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700; color: var(--sec, #9A9A9A);">{{ row.recoLastMain }}</div>
+                      <div style="font-variant-numeric: tabular-nums; font-size: 10px; letter-spacing: 0.03em; color: var(--mut, #6B6B6B);">{{ row.recoLastSub }}</div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 3px; padding: 0 6px;">
+                      <div style="font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 800; color: var(--tx, #F2F2F2); white-space: nowrap;">{{ row.recoDelta }}</div>
+                      <div style="font-variant-numeric: tabular-nums; font-size: 11px; color: var(--mut, #6B6B6B);">{{ row.recoPct }}</div>
+                      <div style="font-size: 8px; letter-spacing: 0.12em; color: var(--dim, #4A4A4A); text-transform: uppercase;">vs last</div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 10px 12px; background: var(--stepbg, transparent); border: 1px {{ row.tBorderStyle }} var(--bds, #333333); border-radius: var(--rs, 4px);">
+                      <div style="font-size: 9px; letter-spacing: 0.16em; color: {{ row.tLabelColor }}; text-transform: uppercase;">{{ row.tLabel }}</div>
+                      <div style="font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700; color: var(--tx, #F2F2F2);">{{ row.recoTargetMain }}</div>
+                      <div style="font-variant-numeric: tabular-nums; font-size: 10px; letter-spacing: 0.03em; color: var(--sec, #9A9A9A);">{{ row.recoTargetSub }}</div>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ row.noReco }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size: 11px; color: var(--rzn, #6B6B6B); text-align: center; letter-spacing: 0.02em;">{{ row.reason }}</div>
+                </sc-if>
+                <sc-if value="{{ row.plateau }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px dashed var(--bds, #333333); border-radius: var(--rs, 4px);">
+                    <div style="font-size: 11px; color: var(--sec, #9A9A9A); line-height: 1.5;">{{ row.plateauText }}</div>
+                    <div onClick="{{ row.plateauDismiss }}" style="font-size: 10px; letter-spacing: 0.08em; color: var(--dim, #4A4A4A); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-transform: uppercase; white-space: nowrap;">Dismiss</div>
+                  </div>
+                </sc-if>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                  <div onClick="{{ row.rMinus }}" style="width: 72px; height: 56px; flex-shrink: 0; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer;">−</div>
+                  <div onClick="{{ row.rTap }}" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                    <div style="font-variant-numeric: tabular-nums; font-size: 38px; font-weight: 800; line-height: 1; color: {{ row.wColor }}; border-bottom: 2px dotted var(--dim, #4A4A4A); padding-bottom: 4px;">{{ row.reps }}</div>
+                    <div style="font-size: 10px; letter-spacing: 0.14em; color: var(--mut, #6B6B6B); margin-top: 5px; text-transform: uppercase;">reps</div>
+                  </div>
+                  <div onClick="{{ row.rPlus }}" style="width: 72px; height: 56px; flex-shrink: 0; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer;">+</div>
+                </div>
+
+                <sc-if value="{{ row.showRir }}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div style="font-size: 10px; letter-spacing: 0.16em; color: var(--mut, #6B6B6B); text-transform: uppercase;">RIR · reps in reserve</div>
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;">
+                      <sc-for list="{{ row.pills }}" as="pill" hint-placeholder-count="5">
+                        <div onClick="{{ pill.select }}" style="height: 48px; border-radius: var(--rs, 4px); background: {{ pill.bg }}; border: 1px solid {{ pill.bd }}; color: {{ pill.fg }}; font-size: 15px; font-weight: {{ pill.fw }}; display: flex; align-items: center; justify-content: center; cursor: pointer;">{{ pill.label }}</div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+                </div>
+                </sc-if>
+
+                <sc-if value="{{ row.isCardio }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; flex-direction: column; gap: 14px;">
+                    <sc-for list="{{ row.metrics }}" as="m" hint-placeholder-count="3">
+                      <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                        <div onClick="{{ m.dec }}" style="width: 72px; height: 56px; flex-shrink: 0; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer;">−</div>
+                        <div style="display: flex; flex-direction: column; align-items: center;">
+                          <div style="font-variant-numeric: tabular-nums; font-size: 30px; font-weight: 800; line-height: 1; color: var(--numc, #FFFFFF);">{{ m.value }}</div>
+                          <div style="font-size: 10px; letter-spacing: 0.14em; color: var(--mut, #6B6B6B); margin-top: 5px; text-transform: uppercase;">{{ m.label }}</div>
+                        </div>
+                        <div onClick="{{ m.inc }}" style="width: 72px; height: 56px; flex-shrink: 0; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer;">+</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-for>
+
+    <div onClick="{{ openAdd }}" style="font-size: 12px; letter-spacing: 0.08em; color: var(--mut, #6B6B6B); text-align: center; text-decoration: underline; text-underline-offset: 3px; padding: 20px 0 14px; cursor: pointer; text-transform: var(--tt, uppercase);">+ Add exercise</div>
+  </div>
+
+  <!-- PINNED LOG BAR -->
+  <sc-if value="{{ barVisible }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; z-index: 30;">
+      <div style="width: 100%; max-width: 430px; padding: 10px 18px 16px; box-sizing: border-box; background: var(--bg, #000000); border-top: 1px solid var(--bd, #1C1C1C);">
+        <div onClick="{{ barLog }}" style="height: 58px; border-radius: var(--rl, 6px); background: var(--acc, #C8FF2E); color: var(--onacc, #000000); font-size: 15px; font-weight: 800; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">{{ barLabel }}</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- FINISH CONFIRM -->
+  <sc-if value="{{ finishConfirmOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ finishNo }}" style="position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 65; display: flex; align-items: flex-end; justify-content: center;">
+      <div onClick="{{ swallow }}" style="width: 100%; max-width: 430px; background: var(--cardbg, #0A0A0A); border: 1px solid var(--cardbd, #333333); border-radius: var(--rl, 6px) var(--rl, 6px) 0 0; padding: 20px 18px 26px; box-sizing: border-box; animation: sheet-up 0.22s ease-out; display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-size: 13px; font-weight: 800; color: var(--tx, #F2F2F2); letter-spacing: 0.04em; text-transform: var(--tt, uppercase);">Finish workout?</div>
+        <div style="font-size: 12px; color: var(--mut, #6B6B6B); padding-bottom: 4px;">{{ finishSub }}</div>
+        <div onClick="{{ finishYes }}" style="height: 56px; border-radius: var(--rl, 6px); background: var(--acc, #C8FF2E); color: var(--onacc, #000000); font-size: 14px; font-weight: 800; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Finish workout</div>
+        <div onClick="{{ finishNo }}" style="height: 52px; border-radius: var(--rl, 6px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 14px; font-weight: 700; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Keep going</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- REST TAKEOVER -->
+  <sc-if value="{{ isResting }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; background: var(--bg, #000000); z-index: 40; display: flex; justify-content: center; animation: ovl-up 0.22s ease-out; font-family: var(--f, 'JetBrains Mono', monospace);">
+      <div style="width: 100%; max-width: 430px; display: flex; flex-direction: column; padding: 28px 20px; box-sizing: border-box;">
+        <div style="display: flex; justify-content: space-between;">
+          <div style="font-size: 11px; letter-spacing: 0.18em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Rest</div>
+          <div style="font-size: 11px; letter-spacing: 0.08em; color: var(--dim, #4A4A4A); text-transform: var(--tt, uppercase);">{{ restExName }}</div>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 30px;">
+          <div style="font-variant-numeric: tabular-nums; font-size: 104px; font-weight: 800; color: var(--acc, #C8FF2E); line-height: 1;">{{ restLabel }}</div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px; background: var(--cardbg, #0A0A0A); border: 1px solid var(--cardbd, #333333); border-radius: var(--rl, 6px); padding: 16px 26px;">
+            <div style="font-size: 10px; letter-spacing: 0.16em; color: var(--mut, #6B6B6B); text-transform: uppercase;">{{ restNextTop }}</div>
+            <div style="font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 700; color: var(--tx, #F2F2F2);">{{ restNextMain }}</div>
+            <sc-if value="{{ restHasLast }}" hint-placeholder-val="{{ false }}">
+              <div style="font-variant-numeric: tabular-nums; font-size: 11px; letter-spacing: 0.03em; color: var(--mut, #6B6B6B);">{{ restNextLast }}</div>
+            </sc-if>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+          <div onClick="{{ restMinus15 }}" style="height: 60px; border-radius: var(--rl, 6px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer;">−15s</div>
+          <div onClick="{{ restPlus15 }}" style="height: 60px; border-radius: var(--rl, 6px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer;">+15s</div>
+          <div onClick="{{ restSkip }}" style="height: 60px; border-radius: var(--rl, 6px); background: var(--rowbg, #1A1A1A); border: 1px solid var(--rowbd, transparent); color: var(--sec, #9A9A9A); font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Skip</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- KEYPAD SHEET -->
+  <sc-if value="{{ keypadOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ keypadCancel }}" style="position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 50; display: flex; align-items: flex-end; justify-content: center;">
+      <div onClick="{{ swallow }}" style="width: 100%; max-width: 430px; background: var(--cardbg, #0A0A0A); border: 1px solid var(--cardbd, #333333); border-radius: var(--rl, 6px) var(--rl, 6px) 0 0; padding: 20px 18px 26px; box-sizing: border-box; animation: sheet-up 0.22s ease-out; font-family: var(--f, 'JetBrains Mono', monospace);">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 14px;">
+          <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--mut, #6B6B6B); text-transform: uppercase;">{{ keypadTitle }}</div>
+          <div style="font-variant-numeric: tabular-nums; font-size: 40px; font-weight: 800; color: {{ keypadColor }}; line-height: 1;">{{ keypadValue }}</div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+          <sc-for list="{{ keypadKeys }}" as="k" hint-placeholder-count="12">
+            <div onClick="{{ k.tap }}" style="height: 54px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 20px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer;">{{ k.label }}</div>
+          </sc-for>
+        </div>
+        <div onClick="{{ keypadDone }}" style="height: 56px; margin-top: 10px; border-radius: var(--rl, 6px); background: var(--acc, #C8FF2E); color: var(--onacc, #000000); font-size: 15px; font-weight: 800; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Done</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- EXERCISE PICKER -->
+  <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; background: var(--bg, #000000); z-index: 45; display: flex; justify-content: center; animation: ovl-up 0.22s ease-out;">
+      <div style="width: 100%; max-width: 430px; display: flex; flex-direction: column; gap: 12px; padding: 24px 18px; box-sizing: border-box;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <div style="font-size: 15px; font-weight: 700; color: var(--tx, #F2F2F2); letter-spacing: 0.04em; text-transform: var(--tt, uppercase);">{{ pickerTitle }}</div>
+          <div onClick="{{ pickerCancel }}" style="font-size: 12px; letter-spacing: 0.08em; color: var(--mut, #6B6B6B); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-transform: var(--tt, uppercase);">Cancel</div>
+        </div>
+        <input value="{{ pickerQuery }}" onChange="{{ pickerQueryChange }}" placeholder="Search exercises" style="height: 48px; width: 100%; padding: 0 14px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-family: inherit; font-size: 14px; outline: none; box-sizing: border-box;">
+        <div style="display: flex; align-items: center; gap: 10px; padding-top: 2px;">
+          <div style="font-size: 9px; letter-spacing: 0.2em; color: var(--mut, #6B6B6B); text-transform: uppercase; white-space: nowrap;">Muscle group</div>
+          <div style="flex: 1; height: 1px; background: var(--bd, #1C1C1C);"></div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <sc-for list="{{ pickerGroups }}" as="g" hint-placeholder-count="6">
+            <div onClick="{{ g.pick }}" style="height: 34px; padding: 0 12px; border-radius: 999px; background: {{ g.bg }}; border: 1px solid {{ g.bd }}; color: {{ g.fg }}; font-size: 11px; letter-spacing: 0.06em; display: flex; align-items: center; cursor: pointer; text-transform: uppercase;">{{ g.label }}</div>
+          </sc-for>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; padding-top: 2px;">
+          <div style="font-size: 9px; letter-spacing: 0.2em; color: var(--mut, #6B6B6B); text-transform: uppercase; white-space: nowrap;">Equipment</div>
+          <div style="flex: 1; height: 1px; background: var(--bd, #1C1C1C);"></div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <sc-for list="{{ pickerEquips }}" as="q" hint-placeholder-count="6">
+            <div onClick="{{ q.pick }}" style="height: 34px; padding: 0 12px; border-radius: 999px; background: {{ q.bg }}; border: 1px solid {{ q.bd }}; color: {{ q.fg }}; font-size: 11px; letter-spacing: 0.06em; display: flex; align-items: center; cursor: pointer; text-transform: uppercase;">{{ q.label }}</div>
+          </sc-for>
+        </div>
+        <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px;">
+          <sc-for list="{{ pickerItems }}" as="it" hint-placeholder-count="5">
+            <div onClick="{{ it.pick }}" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 13px 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px); cursor: pointer;">
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <div style="font-size: 13px; font-weight: 700; color: var(--tx, #F2F2F2); letter-spacing: 0.03em; text-transform: var(--tt, uppercase);">{{ it.name }}</div>
+                <div style="font-size: 10px; letter-spacing: 0.06em; color: var(--mut, #6B6B6B); text-transform: uppercase;">{{ it.sub }}</div>
+              </div>
+              <sc-if value="{{ it.match }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size: 9px; letter-spacing: 0.1em; color: var(--acc, #C8FF2E); border: 1px solid var(--bds, #333333); padding: 4px 7px; border-radius: 999px; white-space: nowrap; text-transform: uppercase;">Same muscle</div>
+              </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ pickerEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size: 12px; color: var(--dim, #4A4A4A); text-align: center; padding: 24px 0;">No matches</div>
+          </sc-if>
+        </div>
+        <div style="font-size: 10px; letter-spacing: 0.06em; color: var(--dim, #4A4A4A); text-align: center; text-transform: uppercase;">{{ pickerFootnote }}</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- REORDER SHEET -->
+  <sc-if value="{{ reorderOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ reorderClose }}" style="position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 46; display: flex; align-items: flex-end; justify-content: center;">
+      <div onClick="{{ swallow }}" style="width: 100%; max-width: 430px; background: var(--cardbg, #0A0A0A); border: 1px solid var(--cardbd, #333333); border-radius: var(--rl, 6px) var(--rl, 6px) 0 0; padding: 20px 18px 26px; box-sizing: border-box; animation: sheet-up 0.22s ease-out; display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--mut, #6B6B6B); text-transform: uppercase; padding-bottom: 6px;">Exercise order · today's session</div>
+        <sc-for list="{{ orderRows }}" as="or" hint-placeholder-count="3">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 3px; padding: 10px 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px);">
+              <div style="font-size: 13px; font-weight: 700; color: var(--tx, #F2F2F2); letter-spacing: 0.03em; text-transform: var(--tt, uppercase);">{{ or.name }}</div>
+              <div style="font-variant-numeric: tabular-nums; font-size: 10px; color: var(--mut, #6B6B6B); letter-spacing: 0.06em; text-transform: uppercase;">{{ or.progress }}</div>
+            </div>
+            <div onClick="{{ or.up }}" style="width: 48px; height: 48px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: {{ or.upColor }}; font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer;">↑</div>
+            <div onClick="{{ or.down }}" style="width: 48px; height: 48px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: {{ or.downColor }}; font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer;">↓</div>
+          </div>
+        </sc-for>
+        <div onClick="{{ reorderClose }}" style="height: 56px; margin-top: 8px; border-radius: var(--rl, 6px); background: var(--acc, #C8FF2E); color: var(--onacc, #000000); font-size: 14px; font-weight: 800; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Done</div>
+        <div style="font-size: 10px; letter-spacing: 0.06em; color: var(--dim, #4A4A4A); text-align: center; text-transform: uppercase;">Reorders this session only — routine unchanged</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- SWAP CONFIRM -->
+  <sc-if value="{{ swapConfirmOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ swapCancel }}" style="position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 48; display: flex; align-items: flex-end; justify-content: center;">
+      <div onClick="{{ swallow }}" style="width: 100%; max-width: 430px; background: var(--cardbg, #0A0A0A); border: 1px solid var(--cardbd, #333333); border-radius: var(--rl, 6px) var(--rl, 6px) 0 0; padding: 20px 18px 26px; box-sizing: border-box; animation: sheet-up 0.22s ease-out; display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-size: 13px; font-weight: 800; color: var(--tx, #F2F2F2); letter-spacing: 0.04em; padding-bottom: 6px; text-transform: var(--tt, uppercase);">Swap to {{ swapConfirmName }}</div>
+        <div onClick="{{ swapSession }}" style="height: 56px; border-radius: var(--rl, 6px); background: var(--acc, #C8FF2E); color: var(--onacc, #000000); font-size: 14px; font-weight: 800; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">This session only</div>
+        <div onClick="{{ swapRoutine }}" style="height: 52px; border-radius: var(--rl, 6px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 14px; font-weight: 700; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Also update routine</div>
+        <div onClick="{{ swapCancel }}" style="font-size: 12px; letter-spacing: 0.08em; color: var(--mut, #6B6B6B); text-align: center; padding: 10px 0 2px; cursor: pointer; text-transform: var(--tt, uppercase);">Cancel</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- RESUME PROMPT -->
+  <sc-if value="{{ resumeOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 70; display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box;">
+      <div style="width: 100%; max-width: 360px; background: var(--cardbg, #0A0A0A); border: 1px solid var(--cardbd, #333333); border-radius: var(--rl, 6px); padding: 22px 18px; display: flex; flex-direction: column; gap: 12px; animation: ovl-up 0.22s ease-out;">
+        <div style="font-size: 13px; font-weight: 800; color: var(--tx, #F2F2F2); letter-spacing: 0.06em; text-transform: var(--tt, uppercase);">Workout in progress</div>
+        <div style="font-size: 12px; color: var(--mut, #6B6B6B); line-height: 1.6;">Push A · started 32 min ago · 6 sets logged.</div>
+        <div onClick="{{ resumeDo }}" style="height: 56px; border-radius: var(--rl, 6px); background: var(--acc, #C8FF2E); color: var(--onacc, #000000); font-size: 14px; font-weight: 800; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Resume</div>
+        <div onClick="{{ resumeDiscard }}" style="height: 52px; border-radius: var(--rl, 6px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 14px; font-weight: 700; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Discard</div>
+        <div style="font-size: 10px; letter-spacing: 0.04em; color: var(--dim, #4A4A4A); text-align: center; text-transform: uppercase;">Discarding keeps logged sets in history</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- STEP CHOOSER -->
+  <sc-if value="{{ stepChooserOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ stepClose }}" style="position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 55; display: flex; align-items: flex-end; justify-content: center;">
+      <div onClick="{{ swallow }}" style="width: 100%; max-width: 430px; background: var(--cardbg, #0A0A0A); border: 1px solid var(--cardbd, #333333); border-radius: var(--rl, 6px) var(--rl, 6px) 0 0; padding: 20px 18px 26px; box-sizing: border-box; animation: sheet-up 0.22s ease-out; font-family: var(--f, 'JetBrains Mono', monospace);">
+        <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--mut, #6B6B6B); text-transform: uppercase; padding-bottom: 14px;">Weight step · kg</div>
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
+          <sc-for list="{{ stepOptions }}" as="so" hint-placeholder-count="5">
+            <div onClick="{{ so.pick }}" style="height: 52px; border-radius: var(--rs, 4px); background: {{ so.bg }}; border: 1px solid {{ so.bd }}; color: {{ so.fg }}; font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer;">{{ so.label }}</div>
+          </sc-for>
+        </div>
+        <div style="font-size: 10px; letter-spacing: 0.06em; color: var(--dim, #4A4A4A); text-align: center; padding-top: 14px; text-transform: uppercase;">Applies to the ± buttons · hold any ± to reopen</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- SUMMARY -->
+  <sc-if value="{{ finished }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; background: var(--bg, #000000); z-index: 60; display: flex; justify-content: center; animation: ovl-up 0.22s ease-out; font-family: var(--f, 'JetBrains Mono', monospace);">
+      <div style="width: 100%; max-width: 430px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 28px 20px; box-sizing: border-box;">
+        <div style="font-size: 11px; letter-spacing: 0.2em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Push A · Complete</div>
+        <div style="font-variant-numeric: tabular-nums; font-size: 64px; font-weight: 800; color: var(--acc, #C8FF2E); line-height: 1;">{{ elapsed }}</div>
+        <div style="font-variant-numeric: tabular-nums; font-size: 14px; color: var(--sec, #9A9A9A); letter-spacing: 0.03em;">{{ summaryLine }}</div>
+        <sc-if value="{{ hasChanges }}" hint-placeholder-val="{{ false }}">
+          <div style="font-variant-numeric: tabular-nums; font-size: 12px; color: var(--mut, #6B6B6B); letter-spacing: 0.03em; text-align: center;">{{ summaryChanges }}</div>
+        </sc-if>
+        <div onClick="{{ resetAll }}" style="height: 56px; width: 100%; max-width: 320px; margin-top: 26px; border-radius: var(--rl, 6px); background: var(--acc, #C8FF2E); color: var(--onacc, #000000); font-size: 15px; font-weight: 800; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Done</div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:844},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;volt&quot;,&quot;ember&quot;],&quot;default&quot;:&quot;volt&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;soundEnabled&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Behavior&quot;},&quot;restSeconds&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:90,&quot;min&quot;:15,&quot;max&quot;:300,&quot;unit&quot;:&quot;s&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Behavior&quot;},&quot;weightIncrementKg&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:2.5,&quot;min&quot;:0.5,&quot;max&quot;:10,&quot;step&quot;:0.5,&quot;unit&quot;:&quot;kg&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Behavior&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.EX = [
+      { name: 'Bench Press', scheme: '4×8 @ RIR 2', targetReps: 8, targetRir: 2, rest: 90, muscle: 'chest', group: 'chest',
+        reason: '', delta: '↑ 2.5 kg', lastLine: '60 kg · 4×10 @ RIR 3', targetLine: '8 reps @ RIR 2',
+        lastMain: '60 kg', lastSub: '4×10 @ RIR 3', lastW: 60, target: { w: 62.5, sub: '8 reps @ RIR 2', weeksLeft: 3 },
+        init: [
+          { warmup: true, weight: 30, reps: 8, rir: null },
+          { weight: 62.5, reps: 8, rir: 2 }, { weight: 62.5, reps: 8, rir: 2 },
+          { weight: 62.5, reps: 8, rir: 2 }, { weight: 62.5, reps: 8, rir: 2 }
+        ] },
+      { name: 'Incline DB Press', scheme: '3×10 @ RIR 2', targetReps: 10, targetRir: 2, rest: 90, muscle: 'chest', group: 'chest',
+        reason: 'first time — enter weight', delta: null, lastLine: null, targetLine: null,
+        init: [ { weight: null, reps: 10, rir: 2 }, { weight: null, reps: 10, rir: 2 }, { weight: null, reps: 10, rir: 2 } ] },
+      { name: 'Cable Fly', scheme: '3×12 @ RIR 1', targetReps: 12, targetRir: 1, rest: 60, muscle: 'chest', group: 'chest',
+        plateau: true, plateauText: 'Plateau — 3rd session at 25 kg. Consider a deload: ~−10% = 22.5 kg.',
+        reason: '', delta: 'Repeat', lastLine: '25 kg · 3×12 @ RIR 1', targetLine: '12 reps @ RIR 1',
+        lastMain: '25 kg', lastSub: '3×12 @ RIR 1', lastW: 25, target: null,
+        init: [ { weight: 25, reps: 12, rir: 1 }, { weight: 25, reps: 12, rir: 1 }, { weight: 25, reps: 12, rir: 1 } ] },
+      { name: 'Row Erg', kind: 'cardio', scheme: '10 min steady', rest: null, muscle: 'cardio', group: 'cardio',
+        reason: '', delta: null, lastLine: null, targetLine: null,
+        metrics: [
+          { key: 'time', label: 'Time', step: 60, min: 60, fmt: 'clock', dflt: 600 },
+          { key: 'res', label: 'Resistance · level', step: 1, min: 1, max: 10, fmt: 'num', pre: 'lvl ', dflt: 5 },
+          { key: 'pace', label: 'Pace · /500m', step: 5, min: 60, fmt: 'clock', post: ' /500m', dflt: 125 }
+        ],
+        init: [ { time: 600, res: 5, pace: 125 } ] }
+    ];
+    this.DB = [
+      { name: 'Machine Chest Press', muscle: 'chest', group: 'chest', equipment: 'machine' },
+      { name: 'Dumbbell Bench Press', muscle: 'chest', group: 'chest', equipment: 'dumbbell' },
+      { name: 'Smith Machine Press', muscle: 'chest', group: 'chest', equipment: 'machine' },
+      { name: 'Weighted Dip', muscle: 'chest', group: 'chest', equipment: 'body' },
+      { name: 'Push-Up', muscle: 'chest', group: 'chest', equipment: 'body' },
+      { name: 'Pec Deck', muscle: 'chest', group: 'chest', equipment: 'machine' },
+      { name: 'Cable Crossover', muscle: 'chest', group: 'chest', equipment: 'cable' },
+      { name: 'Overhead Press', muscle: 'front delts', group: 'shoulders', equipment: 'barbell' },
+      { name: 'Lateral Raise', muscle: 'side delts', group: 'shoulders', equipment: 'dumbbell' },
+      { name: 'Cable Lateral Raise', muscle: 'side delts', group: 'shoulders', equipment: 'cable' },
+      { name: 'Lat Pulldown', muscle: 'lats', group: 'back', equipment: 'cable' },
+      { name: 'Seated Cable Row', muscle: 'lats', group: 'back', equipment: 'cable' },
+      { name: 'Pull-Up', muscle: 'lats', group: 'back', equipment: 'body' },
+      { name: 'Triceps Pushdown', muscle: 'triceps', group: 'arms', equipment: 'cable' },
+      { name: 'Biceps Curl', muscle: 'biceps', group: 'arms', equipment: 'dumbbell' },
+      { name: 'Skullcrusher', muscle: 'triceps', group: 'arms', equipment: 'barbell' },
+      { name: 'Back Squat', muscle: 'quads', group: 'legs', equipment: 'barbell' },
+      { name: 'Leg Press', muscle: 'quads', group: 'legs', equipment: 'machine' },
+      { name: 'Leg Curl', muscle: 'hamstrings', group: 'legs', equipment: 'machine' },
+      { name: 'Running (Treadmill)', muscle: 'cardio', group: 'cardio', equipment: 'machine', kind: 'cardio',
+        metrics: [
+          { key: 'time', label: 'Time', step: 60, min: 60, fmt: 'clock', dflt: 1200 },
+          { key: 'pace', label: 'Pace · /km', step: 5, min: 120, fmt: 'clock', post: ' /km', dflt: 330 },
+          { key: 'incline', label: 'Incline · %', step: 0.5, min: 0, max: 15, fmt: 'num', post: '%', dflt: 1 }
+        ] },
+      { name: 'Elliptical', muscle: 'cardio', group: 'cardio', equipment: 'machine', kind: 'cardio',
+        metrics: [
+          { key: 'time', label: 'Time', step: 60, min: 60, fmt: 'clock', dflt: 1200 },
+          { key: 'res', label: 'Resistance · level', step: 1, min: 1, max: 20, fmt: 'num', pre: 'lvl ', dflt: 8 },
+          { key: 'incline', label: 'Incline · %', step: 0.5, min: 0, max: 20, fmt: 'num', post: '%', dflt: 2 }
+        ] },
+      { name: 'Bike Erg', muscle: 'cardio', group: 'cardio', equipment: 'machine', kind: 'cardio',
+        metrics: [
+          { key: 'time', label: 'Time', step: 60, min: 60, fmt: 'clock', dflt: 1200 },
+          { key: 'res', label: 'Resistance · level', step: 1, min: 1, max: 10, fmt: 'num', pre: 'lvl ', dflt: 6 },
+          { key: 'pace', label: 'Pace · /km', step: 5, min: 60, fmt: 'clock', post: ' /km', dflt: 95 }
+        ] }
+    ];
+    this.state = this.freshState();
+    this.rootEl = null;
+    this.lastClickSecond = null;
+    this.holdTimer = null;
+    this.holdFired = false;
+    this.lastPtrKey = '0:0';
+    this.activeCardEl = null;
+    this.activeCardRef = (el) => { if (el) this.activeCardEl = el; };
+    this.rootRef = (el) => { this.rootEl = el; this.applyTheme(); };
+  }
+
+  freshState() {
+    return {
+      theme: null, sound: null,
+      sets: this.EX.map(ex => ex.init.map(s => Object.assign({ logged: false, isWarmup: !!s.warmup }, s))),
+      exMeta: this.EX.map(function (e) { return Object.assign({}, e); }),
+      picker: null,
+      swapConfirm: null,
+      resume: false,
+      reorder: false,
+      finishConfirm: false,
+      ptr: { e: 0, s: 0 },
+      resting: null,
+      keypad: null,
+      step: null,
+      stepChooser: false,
+      finished: false,
+      startedAt: Date.now(),
+      finishedAt: null,
+      tick: 0
+    };
+  }
+
+  themeName() { return this.state.theme || (this.props.theme != null ? this.props.theme : 'volt'); }
+  soundOn() { return this.state.sound === null ? (this.props.soundEnabled !== false) : this.state.sound; }
+  inc() {
+    if (this.state && this.state.step != null) return this.state.step;
+    return this.props.weightIncrementKg != null ? this.props.weightIncrementKg : 2.5;
+  }
+  fmtStep(v) { return (Math.round(v * 100) / 100).toString(); }
+
+  themes() {
+    return {
+      volt: {
+        '--bg': '#000000', '--sur': '#0A0A0A', '--bd': '#222222', '--bds': '#333333',
+        '--tx': '#F2F2F2', '--mut': '#6B6B6B', '--dim': '#4A4A4A', '--sec': '#9A9A9A',
+        '--acc': '#C8FF2E', '--onacc': '#000000', '--rzn': '#6B6B6B',
+        '--f': "'JetBrains Mono', monospace", '--tt': 'uppercase',
+        '--rs': '4px', '--rl': '6px',
+        '--rowbg': 'transparent', '--rowbd': '#1C1C1C',
+        '--wubg': 'transparent', '--wubd': '#161616',
+        '--stepbg': 'transparent', '--stepbd': '#333333',
+        '--cardbg': '#0A0A0A', '--cardbd': '#333333', '--numc': '#FFFFFF'
+      },
+      ember: {
+        '--bg': '#17120E', '--sur': '#221B13', '--bd': '#2E261D', '--bds': '#4A3D2C',
+        '--tx': '#F5EDE3', '--mut': '#A79684', '--dim': '#7D7060', '--sec': '#C9B79E',
+        '--acc': '#FF6A2B', '--onacc': '#1A0F05', '--rzn': '#C08A5A',
+        '--f': "'JetBrains Mono', monospace", '--tt': 'uppercase',
+        '--rs': '4px', '--rl': '6px',
+        '--rowbg': '#1E1710', '--rowbd': 'transparent',
+        '--wubg': '#1B140E', '--wubd': 'transparent',
+        '--stepbg': '#2E251A', '--stepbd': 'transparent',
+        '--cardbg': '#221B13', '--cardbd': 'transparent', '--numc': '#FFF9F0'
+      }
+    };
+  }
+
+  applyTheme() {
+    if (!this.rootEl) return;
+    var t = this.themes()[this.themeName()] || this.themes().volt;
+    for (var k in t) this.rootEl.style.setProperty(k, t[k]);
+  }
+
+  componentDidMount() {
+    this.timer = setInterval(() => this.onTick(), 250);
+    this.applyTheme();
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  componentDidUpdate() {
+    this.applyTheme();
+    var key = this.state.ptr.e + ':' + this.state.ptr.s;
+    if (key !== this.lastPtrKey) {
+      this.lastPtrKey = key;
+      var el = this.activeCardEl;
+      if (el && el.isConnected) {
+        var r = el.getBoundingClientRect();
+        var target = window.scrollY + r.top - 130;
+        try { window.scrollTo({ top: Math.max(0, target), behavior: 'smooth' }); } catch (e) {}
+      }
+    }
+  }
+
+  ensureAudio() {
+    try {
+      if (!this.ac) this.ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (this.ac.state === 'suspended') this.ac.resume();
+    } catch (e) {}
+  }
+  beep(freq, dur, vol) {
+    if (!this.soundOn() || !this.ac) return;
+    try {
+      var t0 = this.ac.currentTime;
+      var o = this.ac.createOscillator(); var g = this.ac.createGain();
+      o.type = 'square'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(this.ac.destination);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    } catch (e) {}
+  }
+
+  onTick() {
+    var r = this.state.resting;
+    if (r) {
+      var remain = Math.ceil((r.endsAt - Date.now()) / 1000);
+      if (remain <= 5 && remain >= 1 && remain !== this.lastClickSecond) {
+        this.lastClickSecond = remain;
+        this.beep(1100, 0.04, 0.25);
+      }
+      if (remain <= 0) {
+        this.lastClickSecond = null;
+        this.beep(1650, 0.3, 0.3);
+        this.setState({ resting: null, tick: this.state.tick + 1 });
+        return;
+      }
+    }
+    this.setState({ tick: this.state.tick + 1 });
+  }
+
+  mutSet(e, s, fn) {
+    var sets = this.state.sets.map(function (arr) { return arr.map(function (x) { return Object.assign({}, x); }); });
+    fn(sets[e][s]);
+    this.setState({ sets: sets });
+  }
+
+  nextUnlogged(sets, afterE, afterS) {
+    for (var e = 0; e < sets.length; e++) {
+      for (var s = 0; s < sets[e].length; s++) {
+        if (!sets[e][s].logged) return { e: e, s: s };
+      }
+    }
+    return null;
+  }
+
+  nextUnloggedAfter(sets, e0, s0) {
+    for (var e = e0; e < sets.length; e++) {
+      for (var s = (e === e0 ? s0 + 1 : 0); s < sets[e].length; s++) {
+        if (!sets[e][s].logged) return { e: e, s: s };
+      }
+    }
+    return null;
+  }
+
+  moveEx(i, d) {
+    var j = i + d;
+    if (j < 0 || j >= this.state.exMeta.length) return;
+    var em = this.state.exMeta.slice(); var t = em[i]; em[i] = em[j]; em[j] = t;
+    var sets = this.state.sets.slice(); var t2 = sets[i]; sets[i] = sets[j]; sets[j] = t2;
+    var upd = { exMeta: em, sets: sets };
+    var nxt = this.nextUnlogged(sets);
+    if (nxt) upd.ptr = nxt;
+    if (this.state.resting && nxt) {
+      upd.resting = Object.assign({}, this.state.resting, { nextE: nxt.e, nextS: nxt.s, exName: em[nxt.e].name });
+    }
+    this.setState(upd);
+  }
+
+  logActive() {
+    this.ensureAudio();
+    var p = this.state.ptr;
+    var cur = this.state.sets[p.e][p.s];
+    if (cur.weight === null) { this.openKeypad('weight'); return; }
+    var sets = this.state.sets.map(function (arr) { return arr.map(function (x) { return Object.assign({}, x); }); });
+    sets[p.e][p.s].logged = true;
+    var seedW = sets[p.e][p.s].weight;
+    for (var s2 = p.s + 1; s2 < sets[p.e].length; s2++) {
+      if (!sets[p.e][s2].logged && sets[p.e][s2].weight === null) sets[p.e][s2].weight = seedW;
+    }
+    var nxt = this.nextUnloggedAfter(sets, p.e, p.s) || this.nextUnlogged(sets);
+    var upd = { sets: sets };
+    if (nxt) {
+      upd.ptr = nxt;
+      if (!cur.isWarmup && !this.state.exMeta[p.e].kind) {
+        var restSec = this.state.exMeta[p.e].rest != null ? this.state.exMeta[p.e].rest : (this.props.restSeconds != null ? this.props.restSeconds : 90);
+        this.lastClickSecond = null;
+        upd.resting = { endsAt: Date.now() + restSec * 1000, exName: this.state.exMeta[nxt.e].name, nextE: nxt.e, nextS: nxt.s };
+      }
+    }
+    this.setState(upd);
+  }
+
+  openKeypad(field) {
+    this.ensureAudio();
+    this.setState({ keypad: { field: field, value: '' } });
+  }
+
+  applySwap(item) {
+    var pk = this.state.picker;
+    if (!pk || !item) return;
+    var ei = pk.exIdx;
+    var em = this.state.exMeta.map(function (m) { return Object.assign({}, m); });
+    var wasCardio = !!em[ei].kind;
+    em[ei] = Object.assign({}, em[ei], { name: item.name, muscle: item.muscle, group: item.group, kind: item.kind || null, metrics: item.metrics || null, reason: 'first time — enter weight', delta: null, lastLine: null, targetLine: null, lastMain: null, lastSub: null, lastW: null, target: null, plateau: false });
+    var sets = this.state.sets.map(function (arr) { return arr.map(function (x) { return Object.assign({}, x); }); });
+    if (item.kind === 'cardio') {
+      var ci = { logged: false, isWarmup: false };
+      item.metrics.forEach(function (d) { ci[d.key] = d.dflt; });
+      sets[ei] = [ci];
+      em[ei].scheme = 'cardio'; em[ei].rest = null;
+    } else if (wasCardio) {
+      sets[ei] = [0, 1, 2].map(function () { return { weight: null, reps: 10, rir: 2, logged: false, isWarmup: false }; });
+      em[ei].scheme = '3×10 @ RIR 2'; em[ei].targetReps = 10; em[ei].targetRir = 2; em[ei].rest = 90;
+    } else {
+      sets[ei] = sets[ei].map(function (x) { return x.logged ? x : Object.assign({}, x, { weight: null }); });
+    }
+    var upd = { exMeta: em, sets: sets, picker: null, swapConfirm: null };
+    if (this.state.ptr.e === ei && this.state.ptr.s >= sets[ei].length) {
+      var nx = this.nextUnlogged(sets);
+      if (nx) upd.ptr = nx;
+    }
+    this.setState(upd);
+  }
+
+  applyAdd(item) {
+    if (item.kind === 'cardio') {
+      var em2 = this.state.exMeta.concat([{ name: item.name, kind: 'cardio', scheme: 'cardio', rest: null, targetRir: null, reason: '', delta: null, lastLine: null, targetLine: null, muscle: 'cardio', group: 'cardio', metrics: item.metrics }]);
+      var ci = { logged: false, isWarmup: false };
+      item.metrics.forEach(function (d) { ci[d.key] = d.dflt; });
+      this.setState({ exMeta: em2, sets: this.state.sets.concat([[ci]]), picker: null });
+      return;
+    }
+    var em = this.state.exMeta.concat([{ name: item.name, scheme: '3×10 @ RIR 2', targetReps: 10, targetRir: 2, rest: 90, reason: 'first time — enter weight', delta: null, lastLine: null, targetLine: null, muscle: item.muscle, group: item.group }]);
+    var sets = this.state.sets.concat([[0, 1, 2].map(function () { return { weight: null, reps: 10, rir: 2, logged: false, isWarmup: false }; })]);
+    this.setState({ exMeta: em, sets: sets, picker: null });
+  }
+
+  finishWorkout() {
+    this.setState({ finished: true, finishedAt: Date.now(), resting: null, keypad: null });
+  }
+
+  fmtClock(ms) {
+    var t = Math.max(0, Math.floor(ms / 1000));
+    var m = Math.floor(t / 60); var s = t % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  fmtW(w) { return w === null ? '—' : (Math.round(w * 10) / 10).toString(); }
+
+  metricFmt(d, v, bare) {
+    var s = d.fmt === 'clock' ? this.fmtClock(v * 1000) : String(Math.round(v * 10) / 10);
+    if (bare) return s;
+    return (d.pre || '') + s + (d.post || '');
+  }
+  metricText(ex, sd) {
+    var self = this;
+    return ex.metrics.map(function (d) { return self.metricFmt(d, sd[d.key]); }).join(' · ');
+  }
+
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var p = st.ptr;
+
+    var exercises = st.exMeta.map(function (ex, ei) {
+      var setArr = st.sets[ei];
+      var workTotal = setArr.filter(function (x) { return !x.isWarmup; }).length;
+      var rows = setArr.map(function (sd, si) {
+        var isActive = !st.finished && p.e === ei && p.s === si;
+        var workIdx = setArr.slice(0, si + 1).filter(function (x) { return !x.isWarmup; }).length;
+        var label = sd.isWarmup ? 'Warm-up' : 'Set ' + workIdx;
+        var prefix = sd.isWarmup ? (ei === 0 ? ex.name + ' · ' : '') : label + '   ';
+        var isCardio = ex.kind === 'cardio';
+        var text;
+        if (isCardio) {
+          text = self.metricText(ex, sd);
+        } else if (sd.logged) {
+          text = prefix + self.fmtW(sd.weight) + ' kg × ' + sd.reps + (sd.rir !== null ? '   RIR ' + sd.rir : '');
+        } else {
+          text = prefix + self.fmtW(sd.weight) + ' kg × ' + sd.reps + (sd.isWarmup ? '' : '   target RIR ' + ex.targetRir);
+        }
+        var pills = [0, 1, 2, 3, 4].map(function (v) {
+          var sel = sd.rir === v;
+          return {
+            label: v === 4 ? '4+' : String(v),
+            bg: sel ? 'var(--acc)' : 'var(--stepbg)',
+            bd: sel ? 'var(--acc)' : 'var(--stepbd)',
+            fg: sel ? 'var(--onacc)' : 'var(--sec)',
+            fw: sel ? 800 : 400,
+            select: function () { self.mutSet(ei, si, function (x) { x.rir = v; }); }
+          };
+        });
+        return {
+          isPlain: !isActive,
+          isActive: isActive,
+          isDivider: false,
+          bg: sd.isWarmup ? 'var(--wubg)' : 'var(--rowbg)',
+          bd: sd.isWarmup ? 'var(--wubd)' : 'var(--rowbd)',
+          fs: sd.isWarmup ? '11px' : '13px',
+          mark: sd.logged ? '✓' : '·',
+          markColor: sd.logged ? 'var(--acc)' : 'var(--dim)',
+          cardRef: isActive ? self.activeCardRef : undefined,
+          text: text,
+          textColor: sd.logged ? 'var(--mut)' : 'var(--dim)',
+          setLabel: isCardio ? 'Cardio' : (sd.isWarmup ? (ei === 0 ? ex.name : 'Warm-up') : 'Set ' + workIdx + ' of ' + workTotal),
+          isCardio: isCardio,
+          isStrength: !isCardio,
+          metrics: isCardio ? ex.metrics.map(function (d) {
+            return {
+              label: d.label,
+              value: self.metricFmt(d, sd[d.key], true),
+              dec: function () { self.mutSet(ei, si, function (x) { x[d.key] = Math.max(d.min != null ? d.min : 0, x[d.key] - d.step); }); },
+              inc: function () { self.mutSet(ei, si, function (x) { x[d.key] = Math.min(d.max != null ? d.max : 1e9, x[d.key] + d.step); }); }
+            };
+          }) : [],
+          wu: sd.isWarmup,
+          wText: self.fmtW(sd.weight),
+          wColor: sd.weight === null ? 'var(--dim)' : 'var(--numc)',
+          reps: sd.reps,
+          reason: sd.weight === null ? 'first time — enter weight (tap the number)' : ex.reason,
+          hasReco: !sd.isWarmup && !isCardio && sd.weight !== null && !!ex.lastLine,
+          noReco: (sd.isWarmup || isCardio) ? false : !(sd.weight !== null && !!ex.lastLine),
+          recoDelta: (function () {
+            if (ex.lastW == null || sd.weight === null) return '—';
+            var dw = Math.round((sd.weight - ex.lastW) * 100) / 100;
+            if (dw === 0) return '± 0 kg';
+            return (dw > 0 ? '↑ +' : '↓ −') + self.fmtW(Math.abs(dw)) + ' kg';
+          })(),
+          recoPct: (function () {
+            if (!ex.lastW || sd.weight === null) return '';
+            var pp = Math.round((sd.weight - ex.lastW) / ex.lastW * 1000) / 10;
+            return (pp > 0 ? '+' : (pp < 0 ? '−' : '±')) + Math.abs(pp) + '%';
+          })(),
+          recoLastMain: ex.lastMain || '',
+          recoLastSub: ex.lastSub || '',
+          tLabel: ex.target ? 'Target' : 'No target',
+          tLabelColor: ex.target ? 'var(--acc)' : 'var(--dim)',
+          tBorderStyle: ex.target ? 'solid' : 'dashed',
+          recoTargetMain: ex.target ? self.fmtW(ex.target.w) + ' kg' : '—',
+          recoTargetSub: ex.target ? ex.target.sub + ' · ' + ex.target.weeksLeft + ' wk left' : 'set in Insights',
+          plateau: isActive && !sd.isWarmup && !!ex.plateau,
+          plateauText: ex.plateauText || '',
+          plateauDismiss: function () { var em = self.state.exMeta.map(function (m) { return Object.assign({}, m); }); em[ei].plateau = false; self.setState({ exMeta: em }); },
+          showRir: !sd.isWarmup && !isCardio,
+          logLabel: isCardio ? 'Log cardio' : (sd.isWarmup ? 'Log warm-up' : 'Log set · start rest'),
+          activate: function () { self.setState({ ptr: { e: ei, s: si } }); },
+          wDec1: function () { if (self.holdFired) { self.holdFired = false; return; } self.mutSet(ei, si, function (x) { x.weight = Math.max(0, (x.weight || 0) - self.inc()); }); },
+          wInc1: function () { if (self.holdFired) { self.holdFired = false; return; } self.mutSet(ei, si, function (x) { x.weight = (x.weight || 0) + self.inc(); }); },
+          lblDec1: '−' + self.fmtStep(self.inc()),
+          lblInc1: '+' + self.fmtStep(self.inc()),
+          wTap: function () { self.openKeypad('weight'); },
+          rMinus: function () { self.mutSet(ei, si, function (x) { x.reps = Math.max(1, x.reps - 1); }); },
+          rPlus: function () { self.mutSet(ei, si, function (x) { x.reps = x.reps + 1; }); },
+          rTap: function () { self.openKeypad('reps'); },
+          pills: pills,
+          log: function () { self.logActive(); }
+        };
+      });
+      var wuRows = rows.filter(function (r) { return r.wu; });
+      var workRows = rows.filter(function (r) { return !r.wu; });
+      if (ei === 0) {
+        rows = workRows;
+      } else if (wuRows.length) {
+        rows = [{ isDivider: true, label: 'Warm-up', isPlain: false, isActive: false }]
+          .concat(wuRows, [{ isDivider: true, label: 'Working sets', isPlain: false, isActive: false }], workRows);
+      }
+      return { name: ex.name, scheme: ex.scheme, rows: rows, showSwap: true, wuRows: ei === 0 ? wuRows : [], swap: function () { self.setState({ picker: { mode: 'swap', exIdx: ei, query: '', group: ex.group || 'all', equip: 'all' } }); } };
+    });
+    if (exercises.length && exercises[0].wuRows.length) {
+      exercises = [{ name: 'Warm-up', scheme: '', rows: exercises[0].wuRows, showSwap: false, swap: function () {}, wuRows: [] }].concat(exercises);
+    }
+
+    // exercise picker
+    var pk = st.picker;
+    var pickerItems = [], pickerGroups = [], pickerEquips = [], pickerTitle = '', pickerFootnote = '', pickerEmpty = false;
+    if (pk) {
+      var inSession = st.exMeta.map(function (m) { return m.name.toLowerCase(); });
+      var targetMuscle = pk.mode === 'swap' ? (st.exMeta[pk.exIdx].muscle || '') : '';
+      var q = (pk.query || '').toLowerCase();
+      var list = this.DB.filter(function (d) {
+        if (inSession.indexOf(d.name.toLowerCase()) !== -1) return false;
+        if (q && d.name.toLowerCase().indexOf(q) === -1) return false;
+        if (pk.group !== 'all' && d.group !== pk.group) return false;
+        if (pk.equip !== 'all' && d.equipment !== pk.equip) return false;
+        return true;
+      });
+      if (pk.mode === 'swap') {
+        list = list.slice().sort(function (a, b) {
+          return (a.muscle === targetMuscle ? 0 : 1) - (b.muscle === targetMuscle ? 0 : 1);
+        });
+      }
+      pickerItems = list.map(function (d) {
+        return {
+          name: d.name,
+          sub: d.muscle + ' · ' + d.equipment,
+          match: pk.mode === 'swap' && d.muscle === targetMuscle,
+          pick: function () {
+            if (pk.mode === 'swap') self.setState({ swapConfirm: d });
+            else self.applyAdd(d);
+          }
+        };
+      });
+      pickerEmpty = pickerItems.length === 0;
+      pickerTitle = pk.mode === 'swap' ? 'Swap ' + st.exMeta[pk.exIdx].name : 'Add exercise';
+      pickerFootnote = pk.mode === 'swap' ? 'Same-muscle alternatives first · not already in today\'s routine' : 'Added to this session only — routine template unchanged';
+      var chip = function (val, cur, apply) {
+        var sel = cur === val;
+        return {
+          label: val,
+          bg: sel ? 'var(--acc)' : 'var(--stepbg)',
+          bd: sel ? 'var(--acc)' : 'var(--stepbd)',
+          fg: sel ? 'var(--onacc)' : 'var(--sec)',
+          pick: function () { apply(val); }
+        };
+      };
+      pickerGroups = ['all', 'chest', 'back', 'shoulders', 'arms', 'legs', 'cardio'].map(function (g) {
+        return chip(g, pk.group, function (v) { self.setState({ picker: Object.assign({}, self.state.picker, { group: v }) }); });
+      });
+      pickerEquips = ['all', 'barbell', 'dumbbell', 'cable', 'machine', 'body'].map(function (e2) {
+        return chip(e2, pk.equip, function (v) { self.setState({ picker: Object.assign({}, self.state.picker, { equip: v }) }); });
+      });
+    }
+
+    // rest overlay
+    var isResting = !!st.resting && !st.finished;
+    var restLabel = '', restExName = '', restNextTop = '', restNextMain = '', restNextLast = '';
+    if (isResting) {
+      var r = st.resting;
+      restLabel = this.fmtClock(r.endsAt - Date.now());
+      restExName = r.exName;
+      var ns = st.sets[r.nextE][r.nextS];
+      var nEx = st.exMeta[r.nextE];
+      var wArr = st.sets[r.nextE];
+      var wIdx = wArr.slice(0, r.nextS + 1).filter(function (x) { return !x.isWarmup; }).length;
+      var wTot = wArr.filter(function (x) { return !x.isWarmup; }).length;
+      if (nEx.kind === 'cardio') {
+        restNextTop = 'Next · Cardio';
+        restNextMain = nEx.name;
+      } else {
+        restNextTop = ns.isWarmup ? 'Next · Warm-up' : 'Next · Set ' + wIdx + ' of ' + wTot;
+        restNextMain = this.fmtW(ns.weight) + ' kg × ' + ns.reps + (ns.isWarmup ? '' : ' @ RIR ' + nEx.targetRir);
+        if (!ns.isWarmup && nEx.lastLine) restNextLast = 'Last · ' + nEx.lastLine;
+      }
+    }
+
+    // pinned log bar
+    var curSet = (st.sets[p.e] || [])[p.s];
+    var barVisible = !st.finished && !st.resting && !st.picker && !st.keypad && !st.reorder && !st.finishConfirm && !!curSet && !curSet.logged;
+    var barLabel = '';
+    if (barVisible) {
+      if (st.exMeta[p.e].kind === 'cardio') {
+        barLabel = 'Log cardio';
+      } else if (curSet.isWarmup) {
+        barLabel = 'Log warm-up';
+      } else {
+        var bArr = st.sets[p.e];
+        var bIdx = bArr.slice(0, p.s + 1).filter(function (x) { return !x.isWarmup; }).length;
+        var bTot = bArr.filter(function (x) { return !x.isWarmup; }).length;
+        barLabel = 'Log set ' + bIdx + '/' + bTot + ' · start rest';
+      }
+    }
+
+    // keypad
+    var kp = st.keypad;
+    var kpCur = '';
+    if (kp && curSet) kpCur = kp.field === 'weight' ? (curSet.weight === null ? '' : String(curSet.weight)) : String(curSet.reps);
+    var keypadKeys = ['1','2','3','4','5','6','7','8','9','.','0','⌫'].map(function (k) {
+      return {
+        label: k,
+        tap: function () {
+          var v = self.state.keypad.value;
+          if (k === '⌫') v = v.slice(0, -1);
+          else if (k === '.') { if (v.indexOf('.') === -1) v = (v || '0') + '.'; }
+          else if (v.length < 6) v = v + k;
+          self.setState({ keypad: Object.assign({}, self.state.keypad, { value: v }) });
+        }
+      };
+    });
+
+    // summary
+    var loggedWork = [];
+    st.sets.forEach(function (arr) { arr.forEach(function (x) { if (x.logged && !x.isWarmup) loggedWork.push(x); }); });
+    var vol = loggedWork.reduce(function (a, x) { return a + (x.weight || 0) * (x.reps || 0); }, 0);
+
+    var elapsedMs = (st.finishedAt || Date.now()) - st.startedAt;
+
+    return {
+      rootRef: this.rootRef,
+      themeLabel: this.themeName() === 'volt' ? 'Volt ⇄' : 'Ember ⇄',
+      toggleTheme: function () { self.setState({ theme: self.themeName() === 'volt' ? 'ember' : 'volt' }); },
+      soundLabel: this.soundOn() ? 'Sound on' : 'Sound off',
+      toggleSound: function () { self.ensureAudio(); self.setState({ sound: !self.soundOn() }); },
+      elapsed: this.fmtClock(elapsedMs),
+      finish: function () { self.setState({ finishConfirm: true }); },
+      finishConfirmOpen: !!st.finishConfirm,
+      finishYes: function () { self.setState({ finishConfirm: false }); self.finishWorkout(); },
+      finishNo: function () { self.setState({ finishConfirm: false }); },
+      finishSub: loggedWork.length + ' working sets logged so far',
+      exercises: exercises,
+      isResting: isResting,
+      restLabel: restLabel, restExName: restExName, restNextTop: restNextTop, restNextMain: restNextMain,
+      restNextLast: restNextLast, restHasLast: !!restNextLast,
+      restMinus15: function () { var r2 = self.state.resting; if (r2) self.setState({ resting: Object.assign({}, r2, { endsAt: r2.endsAt - 15000 }) }); },
+      restPlus15: function () { var r2 = self.state.resting; if (r2) self.setState({ resting: Object.assign({}, r2, { endsAt: r2.endsAt + 15000 }) }); },
+      restSkip: function () { self.lastClickSecond = null; self.setState({ resting: null }); },
+      keypadOpen: !!kp,
+      keypadTitle: kp ? (kp.field === 'weight' ? 'Weight · kg' : 'Reps') : '',
+      keypadValue: kp ? (kp.value || kpCur || '0') : '',
+      keypadColor: kp && !kp.value ? 'var(--dim)' : 'var(--acc)',
+      barVisible: barVisible,
+      barLabel: barLabel,
+      barLog: function () { self.logActive(); },
+      keypadKeys: keypadKeys,
+      keypadDone: function () {
+        var k2 = self.state.keypad;
+        if (!k2) return;
+        var num = parseFloat(k2.value);
+        var pp = self.state.ptr;
+        if (!isNaN(num)) {
+          self.mutSet(pp.e, pp.s, function (x) {
+            if (k2.field === 'weight') x.weight = Math.max(0, num);
+            else x.reps = Math.max(1, Math.round(num));
+          });
+        }
+        self.setState({ keypad: null });
+      },
+      keypadCancel: function () { self.setState({ keypad: null }); },
+      holdStart: function () { self.holdFired = false; clearTimeout(self.holdTimer); self.holdTimer = setTimeout(function () { self.holdFired = true; self.setState({ stepChooser: true }); }, 450); },
+      holdEnd: function () { clearTimeout(self.holdTimer); },
+      stepChooserOpen: !!st.stepChooser,
+      stepOptions: [0.5, 1, 1.25, 2.5, 5].map(function (v) {
+        var sel = self.inc() === v;
+        return {
+          label: self.fmtStep(v),
+          bg: sel ? 'var(--acc)' : 'var(--stepbg)',
+          bd: sel ? 'var(--acc)' : 'var(--stepbd)',
+          fg: sel ? 'var(--onacc)' : 'var(--tx)',
+          pick: function () { self.setState({ step: v, stepChooser: false }); }
+        };
+      }),
+      stepClose: function () { self.setState({ stepChooser: false }); },
+      pickerOpen: !!pk,
+      pickerTitle: pickerTitle,
+      pickerCancel: function () { self.setState({ picker: null, swapConfirm: null }); },
+      pickerQuery: pk ? pk.query : '',
+      pickerQueryChange: function (e) { self.setState({ picker: Object.assign({}, self.state.picker, { query: e.target.value }) }); },
+      pickerGroups: pickerGroups,
+      pickerEquips: pickerEquips,
+      pickerItems: pickerItems,
+      pickerEmpty: pickerEmpty,
+      pickerFootnote: pickerFootnote,
+      swapConfirmOpen: !!st.swapConfirm,
+      swapConfirmName: st.swapConfirm ? st.swapConfirm.name : '',
+      swapSession: function () { self.applySwap(self.state.swapConfirm); },
+      swapRoutine: function () { self.applySwap(self.state.swapConfirm); },
+      swapCancel: function () { self.setState({ swapConfirm: null }); },
+      resumeOpen: !!st.resume,
+      demoResume: function () { self.setState({ resume: true }); },
+      resumeDo: function () { self.setState({ resume: false }); },
+      resumeDiscard: function () { self.setState({ resume: false }); },
+      openAdd: function () { self.setState({ picker: { mode: 'add', exIdx: null, query: '', group: 'all', equip: 'all' } }); },
+      reorderOpen: !!st.reorder,
+      openReorder: function () { self.setState({ reorder: true }); },
+      reorderClose: function () { self.setState({ reorder: false }); },
+      orderRows: st.exMeta.map(function (m, i) {
+        var arr = st.sets[i] || [];
+        var done = arr.filter(function (x) { return x.logged; }).length;
+        return {
+          name: m.name,
+          progress: done + '/' + arr.length + ' sets done',
+          upColor: i === 0 ? 'var(--dim)' : 'var(--tx)',
+          downColor: i === st.exMeta.length - 1 ? 'var(--dim)' : 'var(--tx)',
+          up: function () { self.moveEx(i, -1); },
+          down: function () { self.moveEx(i, 1); }
+        };
+      }),
+      swallow: function (ev) { ev.stopPropagation(); },
+      finished: st.finished,
+      summaryLine: loggedWork.length + ' working sets · ' + Math.round(vol).toLocaleString() + ' kg total volume',
+      summaryChanges: (function () {
+        return st.exMeta.map(function (m, mi) {
+          var lw = (st.sets[mi] || []).filter(function (x) { return x.logged && !x.isWarmup; });
+          if (!lw.length || m.kind) return null;
+          if (m.lastW == null) return m.name + ' · first log';
+          var maxW = Math.max.apply(null, lw.map(function (x) { return x.weight || 0; }));
+          if (maxW > m.lastW) return m.name + ' ↑ +' + self.fmtW(maxW - m.lastW) + ' kg';
+          return null;
+        }).filter(function (x) { return x; }).join(' · ');
+      })(),
+      hasChanges: st.exMeta.some(function (m, mi) {
+        var lw = (st.sets[mi] || []).filter(function (x) { return x.logged && !x.isWarmup; });
+        if (!lw.length || m.kind) return false;
+        if (m.lastW == null) return true;
+        var maxW = Math.max.apply(null, lw.map(function (x) { return x.weight || 0; }));
+        return maxW > m.lastW;
+      }),
+      resetAll: function () { self.setState(self.freshState()); }
+    };
+  }
+}
+</script>
+</body>
+</html>

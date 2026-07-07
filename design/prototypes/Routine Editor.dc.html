@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #000; }
+    input::placeholder { color: #6B6B6B; opacity: 1; }
+    @keyframes ovl-up { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  </style>
+</helmet>
+
+<div ref="{{ rootRef }}" style="min-height: 100vh; background: var(--bg, #000000); display: flex; justify-content: center; font-family: var(--f, 'JetBrains Mono', monospace);">
+  <div style="width: 100%; max-width: 430px; display: flex; flex-direction: column; padding: 12px 18px 28px; box-sizing: border-box;">
+
+    <!-- prototype chrome -->
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0 14px;">
+      <div style="font-size: 10px; letter-spacing: 0.2em; color: var(--dim, #4A4A4A); text-transform: uppercase;">Prototype · Routine editor</div>
+      <div onClick="{{ toggleTheme }}" style="height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--bds, #333333); color: var(--mut, #6B6B6B); font-size: 11px; letter-spacing: 0.1em; display: flex; align-items: center; cursor: pointer; text-transform: uppercase;">{{ themeLabel }}</div>
+    </div>
+
+    <!-- header -->
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 4px;">
+      <div style="font-size: 12px; letter-spacing: 0.08em; color: var(--mut, #6B6B6B); cursor: pointer; text-transform: var(--tt, uppercase);">‹ Routines</div>
+      <div style="font-size: 12px; letter-spacing: 0.08em; color: var(--mut, #6B6B6B); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 14px 10px; margin: -14px -10px; text-transform: var(--tt, uppercase);">Done</div>
+    </div>
+    <input value="{{ routineName }}" onChange="{{ nameChange }}" style="background: transparent; border: none; outline: none; padding: 6px 0 2px; font-family: inherit; font-size: 30px; font-weight: 800; color: var(--tx, #F2F2F2); letter-spacing: 0.02em; width: 100%; text-transform: var(--tt, uppercase);">
+    <div style="font-size: 11px; color: var(--dim, #4A4A4A); letter-spacing: 0.06em; padding-bottom: 16px; text-transform: uppercase;">{{ subtitle }}</div>
+
+    <!-- default rest -->
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px); margin-bottom: 16px;">
+      <div style="font-size: 11px; letter-spacing: 0.1em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Default rest</div>
+      <div style="display: flex; gap: 6px;">
+        <sc-for list="{{ restDefaults }}" as="rd" hint-placeholder-count="3">
+          <div onClick="{{ rd.pick }}" style="height: 40px; padding: 0 13px; border-radius: var(--rs, 4px); background: {{ rd.bg }}; border: 1px solid {{ rd.bd }}; color: {{ rd.fg }}; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; display: flex; align-items: center; cursor: pointer;">{{ rd.label }}</div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- warm-up section -->
+    <div onClick="{{ toggleWu }}" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px); margin-bottom: 16px; cursor: pointer;">
+      <div style="display: flex; flex-direction: column; gap: 3px;">
+        <div style="font-size: 11px; letter-spacing: 0.1em; color: var(--tx, #F2F2F2); font-weight: 700; text-transform: uppercase;">Warm-up section</div>
+        <div style="font-size: 10px; color: var(--mut, #6B6B6B); letter-spacing: 0.03em;" data-comment-anchor="9fb0ab53f7-div">Opens the session · 50% × 8, then 70% × 5 of the first exercise's weight</div>
+      </div>
+      <div style="width: 52px; height: 32px; border-radius: 999px; background: {{ wuTrack }}; border: 1px solid {{ wuTrackBd }}; display: flex; align-items: center; padding: 0 3px; box-sizing: border-box; justify-content: {{ wuAlign }};">
+        <div style="width: 24px; height: 24px; border-radius: 999px; background: {{ wuKnob }};"></div>
+      </div>
+    </div>
+
+    <!-- items -->
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <sc-for list="{{ items }}" as="it" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column;">
+
+          <sc-if value="{{ it.collapsed }}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; align-items: stretch; gap: 8px;">
+              <div onClick="{{ it.expand }}" style="flex: 1; display: flex; flex-direction: column; gap: 4px; justify-content: center; padding: 12px 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px); cursor: pointer;">
+                <div style="font-size: 13px; font-weight: 700; color: var(--tx, #F2F2F2); letter-spacing: 0.03em; text-transform: var(--tt, uppercase);">{{ it.name }}</div>
+                <div style="font-variant-numeric: tabular-nums; font-size: 11px; color: var(--mut, #6B6B6B); letter-spacing: 0.04em;">{{ it.summary }}</div>
+              </div>
+              <div style="display: flex; gap: 4px; align-self: center;">
+                <div onClick="{{ it.moveUp }}" style="width: 48px; height: 48px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: {{ it.upColor }}; font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer;">↑</div>
+                <div onClick="{{ it.moveDown }}" style="width: 48px; height: 48px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: {{ it.downColor }}; font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer;">↓</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ it.expanded }}" hint-placeholder-val="{{ false }}">
+            <div style="background: var(--cardbg, #0A0A0A); border: 1px solid var(--cardbd, #333333); border-radius: var(--rl, 6px); padding: 16px 14px; display: flex; flex-direction: column; gap: 14px;">
+              <div onClick="{{ it.collapse }}" style="display: flex; justify-content: space-between; align-items: baseline; cursor: pointer;">
+                <div style="font-size: 14px; font-weight: 700; color: var(--acc, #C8FF2E); letter-spacing: 0.04em; text-transform: var(--tt, uppercase);">{{ it.name }}</div>
+                <div onClick="{{ it.remove }}" style="font-size: 10px; letter-spacing: 0.1em; color: var(--dim, #4A4A4A); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 14px 10px; margin: -14px -10px; text-transform: uppercase;">Remove</div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <div style="font-size: 10px; letter-spacing: 0.16em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Sets</div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div onClick="{{ it.setsMinus }}" style="width: 44px; height: 44px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer;">−</div>
+                    <div style="flex: 1; text-align: center; font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 800; color: var(--numc, #C8FF2E);">{{ it.sets }}</div>
+                    <div onClick="{{ it.setsPlus }}" style="width: 44px; height: 44px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer;">+</div>
+                  </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <div style="font-size: 10px; letter-spacing: 0.16em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Reps</div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div onClick="{{ it.repsMinus }}" style="width: 44px; height: 44px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer;">−</div>
+                    <div style="flex: 1; text-align: center; font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 800; color: var(--numc, #C8FF2E);">{{ it.reps }}</div>
+                    <div onClick="{{ it.repsPlus }}" style="width: 44px; height: 44px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer;">+</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div style="font-size: 10px; letter-spacing: 0.16em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Target RIR</div>
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;">
+                  <sc-for list="{{ it.rirPills }}" as="pill" hint-placeholder-count="5">
+                    <div onClick="{{ pill.select }}" style="height: 44px; border-radius: var(--rs, 4px); background: {{ pill.bg }}; border: 1px solid {{ pill.bd }}; color: {{ pill.fg }}; font-size: 14px; font-weight: {{ pill.fw }}; display: flex; align-items: center; justify-content: center; cursor: pointer;">{{ pill.label }}</div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                <div style="font-size: 10px; letter-spacing: 0.16em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Rest</div>
+                <sc-if value="{{ it.restClosed }}" hint-placeholder-val="{{ true }}">
+                  <div onClick="{{ it.restOpen }}" style="min-width: 76px; padding: 8px 14px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; box-sizing: border-box;">
+                    <div style="font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 800; color: var(--tx, #F2F2F2);">{{ it.restValue }}</div>
+                    <sc-if value="{{ it.restIsDefault }}" hint-placeholder-val="{{ true }}">
+                      <div style="font-size: 8px; letter-spacing: 0.12em; color: var(--mut, #6B6B6B); text-transform: uppercase;">default</div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </div>
+              <sc-if value="{{ it.restExpanded }}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;" data-comment-anchor="cd41431a87-div">
+                  <sc-for list="{{ it.restChips }}" as="rc" hint-placeholder-count="5">
+                    <div onClick="{{ rc.pick }}" style="height: 44px; padding: 0 13px; border-radius: var(--rs, 4px); background: {{ rc.bg }}; border: 1px solid {{ rc.bd }}; color: {{ rc.fg }}; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; display: flex; align-items: center; cursor: pointer; text-transform: var(--tt, uppercase);">{{ rc.label }}</div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+
+    <div onClick="{{ openAdd }}" style="font-size: 12px; letter-spacing: 0.08em; color: var(--mut, #6B6B6B); text-align: center; text-decoration: underline; text-underline-offset: 3px; padding: 18px 0; cursor: pointer; text-transform: var(--tt, uppercase);">+ Add exercise</div>
+
+    <!-- rotation -->
+    <div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px);">
+      <div onClick="{{ toggleRotation }}" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer;">
+        <div style="font-size: 11px; letter-spacing: 0.1em; color: var(--tx, #F2F2F2); font-weight: 700; text-transform: uppercase;">In rotation</div>
+        <div style="width: 52px; height: 32px; border-radius: 999px; background: {{ rotTrack }}; border: 1px solid {{ rotTrackBd }}; display: flex; align-items: center; padding: 0 3px; box-sizing: border-box; justify-content: {{ rotAlign }};">
+          <div style="width: 24px; height: 24px; border-radius: 999px; background: {{ rotKnob }};"></div>
+        </div>
+      </div>
+      <sc-if value="{{ inRotation }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <sc-for list="{{ cycle }}" as="c" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="height: 34px; padding: 0 12px; border-radius: 999px; background: {{ c.bg }}; border: 1px solid {{ c.bd }}; color: {{ c.fg }}; font-size: 11px; font-weight: {{ c.fw }}; letter-spacing: 0.06em; display: flex; align-items: center; text-transform: var(--tt, uppercase);">{{ c.name }}</div>
+              <sc-if value="{{ c.arrow }}" hint-placeholder-val="{{ true }}">
+                <div style="font-size: 11px; color: var(--dim, #4A4A4A);">→</div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- ADD PICKER -->
+  <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; background: var(--bg, #000000); z-index: 45; display: flex; justify-content: center; animation: ovl-up 0.22s ease-out;">
+      <div style="width: 100%; max-width: 430px; display: flex; flex-direction: column; gap: 12px; padding: 24px 18px; box-sizing: border-box;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <div style="font-size: 15px; font-weight: 700; color: var(--tx, #F2F2F2); letter-spacing: 0.04em; text-transform: var(--tt, uppercase);">Add exercise</div>
+          <div onClick="{{ pickerCancel }}" style="font-size: 12px; letter-spacing: 0.08em; color: var(--mut, #6B6B6B); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-transform: var(--tt, uppercase);">Cancel</div>
+        </div>
+        <input value="{{ pickerQuery }}" onChange="{{ pickerQueryChange }}" placeholder="Search exercises" style="height: 48px; width: 100%; padding: 0 14px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-family: inherit; font-size: 14px; outline: none; box-sizing: border-box;">
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <sc-for list="{{ pickerGroups }}" as="g" hint-placeholder-count="6">
+            <div onClick="{{ g.pick }}" style="height: 34px; padding: 0 12px; border-radius: 999px; background: {{ g.bg }}; border: 1px solid {{ g.bd }}; color: {{ g.fg }}; font-size: 11px; letter-spacing: 0.06em; display: flex; align-items: center; cursor: pointer; text-transform: uppercase;">{{ g.label }}</div>
+          </sc-for>
+        </div>
+        <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+          <sc-for list="{{ pickerItems }}" as="pi" hint-placeholder-count="5">
+            <div onClick="{{ pi.pick }}" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 13px 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px); cursor: pointer;">
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <div style="font-size: 13px; font-weight: 700; color: var(--tx, #F2F2F2); letter-spacing: 0.03em; text-transform: var(--tt, uppercase);">{{ pi.name }}</div>
+                <div style="font-size: 10px; letter-spacing: 0.06em; color: var(--mut, #6B6B6B); text-transform: uppercase;">{{ pi.sub }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ pickerEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size: 12px; color: var(--dim, #4A4A4A); text-align: center; padding: 24px 0;">No matches</div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:844},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;volt&quot;,&quot;ember&quot;],&quot;default&quot;:&quot;volt&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.DB = [
+      { name: 'Machine Chest Press', muscle: 'chest', group: 'chest', equipment: 'machine' },
+      { name: 'Dumbbell Bench Press', muscle: 'chest', group: 'chest', equipment: 'dumbbell' },
+      { name: 'Weighted Dip', muscle: 'chest', group: 'chest', equipment: 'body' },
+      { name: 'Pec Deck', muscle: 'chest', group: 'chest', equipment: 'machine' },
+      { name: 'Cable Crossover', muscle: 'chest', group: 'chest', equipment: 'cable' },
+      { name: 'Overhead Press', muscle: 'front delts', group: 'shoulders', equipment: 'barbell' },
+      { name: 'Lateral Raise', muscle: 'side delts', group: 'shoulders', equipment: 'dumbbell' },
+      { name: 'Cable Lateral Raise', muscle: 'side delts', group: 'shoulders', equipment: 'cable' },
+      { name: 'Lat Pulldown', muscle: 'lats', group: 'back', equipment: 'cable' },
+      { name: 'Seated Cable Row', muscle: 'lats', group: 'back', equipment: 'cable' },
+      { name: 'Pull-Up', muscle: 'lats', group: 'back', equipment: 'body' },
+      { name: 'Triceps Pushdown', muscle: 'triceps', group: 'arms', equipment: 'cable' },
+      { name: 'Biceps Curl', muscle: 'biceps', group: 'arms', equipment: 'dumbbell' },
+      { name: 'Skullcrusher', muscle: 'triceps', group: 'arms', equipment: 'barbell' },
+      { name: 'Back Squat', muscle: 'quads', group: 'legs', equipment: 'barbell' },
+      { name: 'Leg Press', muscle: 'quads', group: 'legs', equipment: 'machine' },
+      { name: 'Leg Curl', muscle: 'hamstrings', group: 'legs', equipment: 'machine' }
+    ];
+    this.state = {
+      theme: null,
+      name: 'Push A',
+      defaultRest: 90,
+      items: [
+        { name: 'Bench Press', sets: 4, reps: 8, rir: 2, rest: null },
+        { name: 'Incline DB Press', sets: 3, reps: 10, rir: 2, rest: null },
+        { name: 'Cable Fly', sets: 3, reps: 12, rir: 1, rest: 60 }
+      ],
+      warmup: true,
+      restOpenIdx: null,
+      expanded: 0,
+      inRotation: true,
+      picker: null
+    };
+    this.rootEl = null;
+    this.rootRef = (el) => { this.rootEl = el; this.applyTheme(); };
+  }
+
+  themeName() { return this.state.theme || (this.props.theme != null ? this.props.theme : 'volt'); }
+
+  themes() {
+    return {
+      volt: {
+        '--bg': '#000000', '--bds': '#333333', '--bd': '#1C1C1C',
+        '--tx': '#F2F2F2', '--mut': '#6B6B6B', '--dim': '#4A4A4A', '--sec': '#9A9A9A',
+        '--acc': '#C8FF2E', '--onacc': '#000000',
+        '--f': "'JetBrains Mono', monospace", '--tt': 'uppercase',
+        '--rs': '4px', '--rl': '6px',
+        '--rowbg': 'transparent', '--rowbd': '#1C1C1C',
+        '--stepbg': 'transparent', '--stepbd': '#333333',
+        '--cardbg': '#0A0A0A', '--cardbd': '#333333', '--numc': '#FFFFFF'
+      },
+      ember: {
+        '--bg': '#17120E', '--bds': '#4A3D2C', '--bd': '#2E261D',
+        '--tx': '#F5EDE3', '--mut': '#A79684', '--dim': '#7D7060', '--sec': '#C9B79E',
+        '--acc': '#FF6A2B', '--onacc': '#1A0F05',
+        '--f': "'JetBrains Mono', monospace", '--tt': 'uppercase',
+        '--rs': '4px', '--rl': '6px',
+        '--rowbg': '#1E1710', '--rowbd': 'transparent',
+        '--stepbg': '#2E251A', '--stepbd': 'transparent',
+        '--cardbg': '#221B13', '--cardbd': 'transparent', '--numc': '#FFF9F0'
+      }
+    };
+  }
+
+  applyTheme() {
+    if (!this.rootEl) return;
+    var t = this.themes()[this.themeName()] || this.themes().volt;
+    for (var k in t) this.rootEl.style.setProperty(k, t[k]);
+  }
+
+  componentDidMount() { this.applyTheme(); }
+  componentDidUpdate() { this.applyTheme(); }
+
+  mutItem(i, fn) {
+    var items = this.state.items.map(function (x) { return Object.assign({}, x); });
+    fn(items[i]);
+    this.setState({ items: items });
+  }
+
+  move(i, d) {
+    var j = i + d;
+    if (j < 0 || j >= this.state.items.length) return;
+    var items = this.state.items.slice();
+    var tmp = items[i]; items[i] = items[j]; items[j] = tmp;
+    var exp = this.state.expanded;
+    if (exp === i) exp = j; else if (exp === j) exp = i;
+    this.setState({ items: items, expanded: exp });
+  }
+
+  renderVals() {
+    var self = this;
+    var st = this.state;
+
+    var items = st.items.map(function (item, i) {
+      var expanded = st.expanded === i;
+      var restLabel = item.rest === null ? 'rest ' + st.defaultRest + 's' : 'rest ' + item.rest + 's';
+      var parts = [item.sets + '×' + item.reps + ' @ RIR ' + item.rir, restLabel];
+      var pills = [0, 1, 2, 3, 4].map(function (v) {
+        var sel = item.rir === v;
+        return {
+          label: v === 4 ? '4+' : String(v),
+          bg: sel ? 'var(--acc)' : 'var(--stepbg)',
+          bd: sel ? 'var(--acc)' : 'var(--stepbd)',
+          fg: sel ? 'var(--onacc)' : 'var(--sec)',
+          fw: sel ? 800 : 400,
+          select: function () { self.mutItem(i, function (x) { x.rir = v; }); }
+        };
+      });
+      var restChips = [null, 60, 90, 120, 180].map(function (r) {
+        var sel = item.rest === r;
+        return {
+          label: r === null ? 'Default · ' + st.defaultRest + 's' : r + 's',
+          bg: sel ? 'var(--acc)' : 'var(--stepbg)',
+          bd: sel ? 'var(--acc)' : 'var(--stepbd)',
+          fg: sel ? 'var(--onacc)' : 'var(--sec)',
+          pick: function () { self.mutItem(i, function (x) { x.rest = r; }); self.setState({ restOpenIdx: null }); }
+        };
+      });
+      return {
+        name: item.name,
+        collapsed: !expanded,
+        expanded: expanded,
+        summary: parts.join(' · '),
+        sets: item.sets,
+        reps: item.reps,
+        upColor: i === 0 ? 'var(--dim)' : 'var(--tx)',
+        downColor: i === st.items.length - 1 ? 'var(--dim)' : 'var(--tx)',
+        expand: function () { self.setState({ expanded: i, restOpenIdx: null }); },
+        collapse: function () { self.setState({ expanded: -1 }); },
+        remove: function (ev) {
+          if (ev && ev.stopPropagation) ev.stopPropagation();
+          var items2 = self.state.items.slice(); items2.splice(i, 1);
+          self.setState({ items: items2, expanded: -1 });
+        },
+        moveUp: function () { self.move(i, -1); },
+        moveDown: function () { self.move(i, 1); },
+        setsMinus: function () { self.mutItem(i, function (x) { x.sets = Math.max(1, x.sets - 1); }); },
+        setsPlus: function () { self.mutItem(i, function (x) { x.sets = Math.min(10, x.sets + 1); }); },
+        repsMinus: function () { self.mutItem(i, function (x) { x.reps = Math.max(1, x.reps - 1); }); },
+        repsPlus: function () { self.mutItem(i, function (x) { x.reps = Math.min(30, x.reps + 1); }); },
+        rirPills: pills,
+        restChips: restChips,
+        restClosed: st.restOpenIdx !== i,
+        restExpanded: st.restOpenIdx === i,
+        restOpen: function () { self.setState({ restOpenIdx: i }); },
+        restValue: (item.rest === null ? st.defaultRest : item.rest) + 's',
+        restIsDefault: item.rest === null
+      };
+    });
+
+    var restDefaults = [60, 90, 120].map(function (r) {
+      var sel = st.defaultRest === r;
+      return {
+        label: r + 's',
+        bg: sel ? 'var(--acc)' : 'var(--stepbg)',
+        bd: sel ? 'var(--acc)' : 'var(--stepbd)',
+        fg: sel ? 'var(--onacc)' : 'var(--sec)',
+        pick: function () { self.setState({ defaultRest: r }); }
+      };
+    });
+
+    var cycleNames = ['Pull A', st.name, 'Legs', 'Push B'];
+    var cycle = cycleNames.map(function (n, i) {
+      var isThis = n === st.name;
+      return {
+        name: n,
+        bg: isThis ? 'var(--acc)' : 'var(--stepbg)',
+        bd: isThis ? 'var(--acc)' : 'var(--stepbd)',
+        fg: isThis ? 'var(--onacc)' : 'var(--mut)',
+        fw: isThis ? 800 : 400,
+        arrow: i < cycleNames.length - 1
+      };
+    });
+
+    // picker
+    var pk = st.picker;
+    var pickerItems = [], pickerGroups = [], pickerEmpty = false;
+    if (pk) {
+      var inRoutine = st.items.map(function (m) { return m.name.toLowerCase(); });
+      var q = (pk.query || '').toLowerCase();
+      var list = this.DB.filter(function (d) {
+        if (inRoutine.indexOf(d.name.toLowerCase()) !== -1) return false;
+        if (q && d.name.toLowerCase().indexOf(q) === -1) return false;
+        if (pk.group !== 'all' && d.group !== pk.group) return false;
+        return true;
+      });
+      pickerItems = list.map(function (d) {
+        return {
+          name: d.name,
+          sub: d.muscle + ' · ' + d.equipment,
+          pick: function () {
+            var items2 = self.state.items.concat([{ name: d.name, sets: 3, reps: 10, rir: 2, rest: null }]);
+            self.setState({ items: items2, picker: null, expanded: items2.length - 1 });
+          }
+        };
+      });
+      pickerEmpty = pickerItems.length === 0;
+      pickerGroups = ['all', 'chest', 'back', 'shoulders', 'arms', 'legs'].map(function (g) {
+        var sel = pk.group === g;
+        return {
+          label: g,
+          bg: sel ? 'var(--acc)' : 'var(--stepbg)',
+          bd: sel ? 'var(--acc)' : 'var(--stepbd)',
+          fg: sel ? 'var(--onacc)' : 'var(--sec)',
+          pick: function () { self.setState({ picker: Object.assign({}, self.state.picker, { group: g }) }); }
+        };
+      });
+    }
+
+    return {
+      rootRef: this.rootRef,
+      themeLabel: this.themeName() === 'volt' ? 'Volt ⇄' : 'Ember ⇄',
+      toggleTheme: function () { self.setState({ theme: self.themeName() === 'volt' ? 'ember' : 'volt' }); },
+      routineName: st.name,
+      nameChange: function (e) { self.setState({ name: e.target.value }); },
+      subtitle: st.items.length + ' exercises · ' + (st.inRotation ? 'in rotation' : 'not in rotation'),
+      restDefaults: restDefaults,
+      toggleWu: function () { self.setState({ warmup: !st.warmup }); },
+      wuTrack: st.warmup ? 'var(--acc)' : 'var(--stepbg)',
+      wuTrackBd: st.warmup ? 'var(--acc)' : 'var(--stepbd)',
+      wuKnob: st.warmup ? 'var(--onacc)' : 'var(--mut)',
+      wuAlign: st.warmup ? 'flex-end' : 'flex-start',
+      items: items,
+      openAdd: function () { self.setState({ picker: { query: '', group: 'all' } }); },
+      inRotation: st.inRotation,
+      toggleRotation: function () { self.setState({ inRotation: !st.inRotation }); },
+      rotTrack: st.inRotation ? 'var(--acc)' : 'var(--stepbg)',
+      rotTrackBd: st.inRotation ? 'var(--acc)' : 'var(--stepbd)',
+      rotKnob: st.inRotation ? 'var(--onacc)' : 'var(--mut)',
+      rotAlign: st.inRotation ? 'flex-end' : 'flex-start',
+      cycle: cycle,
+      pickerOpen: !!pk,
+      pickerCancel: function () { self.setState({ picker: null }); },
+      pickerQuery: pk ? pk.query : '',
+      pickerQueryChange: function (e) { self.setState({ picker: Object.assign({}, self.state.picker, { query: e.target.value }) }); },
+      pickerGroups: pickerGroups,
+      pickerItems: pickerItems,
+      pickerEmpty: pickerEmpty
+    };
+  }
+}
+</script>
+</body>
+</html>

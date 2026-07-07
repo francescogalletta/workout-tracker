@@ -1,0 +1,19 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Lift app icon — Volt theme (design/theme-tokens.md): OLED black + accent #C8FF2E.
+       Placeholder vector barbell (no fonts, rasterizes cleanly at every size).
+       Swap for the brand asset when DesignSync is reachable. -->
+  <rect width="1024" height="1024" fill="#000000"/>
+  <g fill="#C8FF2E">
+    <!-- handle bar -->
+    <rect x="336" y="486" width="352" height="52" rx="12"/>
+    <!-- inner plates -->
+    <rect x="296" y="424" width="46" height="176" rx="14"/>
+    <rect x="682" y="424" width="46" height="176" rx="14"/>
+    <!-- outer plates -->
+    <rect x="240" y="376" width="46" height="272" rx="16"/>
+    <rect x="738" y="376" width="46" height="272" rx="16"/>
+    <!-- end caps -->
+    <rect x="196" y="456" width="34" height="112" rx="12"/>
+    <rect x="794" y="456" width="34" height="112" rx="12"/>
+  </g>
+</svg>

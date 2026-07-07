@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #000; }
+  </style>
+</helmet>
+
+<div ref="{{ rootRef }}" style="min-height: 100vh; background: var(--bg, #000000); display: flex; justify-content: center; font-family: var(--f, 'JetBrains Mono', monospace);">
+  <div style="width: 100%; max-width: 430px; display: flex; flex-direction: column; padding: 12px 18px 28px; box-sizing: border-box;">
+
+    <!-- prototype chrome -->
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0 14px;">
+      <div style="font-size: 10px; letter-spacing: 0.2em; color: var(--dim, #4A4A4A); text-transform: uppercase; white-space: nowrap;">Prototype · History</div>
+      <div style="display: flex; gap: 8px;">
+      <div onClick="{{ toggleFirstRun }}" style="height: 30px; padding: 0 14px; border-radius: 999px; background: {{ frBg }}; border: 1px solid {{ frBd }}; color: {{ frFg }}; font-size: 11px; letter-spacing: 0.1em; display: flex; align-items: center; cursor: pointer; white-space: nowrap; text-transform: uppercase;">First run</div>
+      <div onClick="{{ toggleTheme }}" style="height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--bds, #333333); color: var(--mut, #6B6B6B); font-size: 11px; letter-spacing: 0.1em; display: flex; align-items: center; cursor: pointer; white-space: nowrap; text-transform: uppercase;">{{ themeLabel }}</div>
+      </div>
+    </div>
+
+    <!-- header -->
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 14px;">
+      <div style="font-size: 17px; font-weight: 700; letter-spacing: 0.05em; color: var(--tx, #F2F2F2); text-transform: var(--tt, uppercase);">History</div>
+      <a href="Home.dc.html" style="font-size: 12px; letter-spacing: 0.08em; color: var(--mut, #6B6B6B); text-decoration: underline; text-underline-offset: 3px; text-transform: var(--tt, uppercase);">Home</a>
+    </div>
+
+    <!-- view switch -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding-bottom: 16px;">
+      <div onClick="{{ viewLog }}" style="height: 48px; border-radius: var(--rs, 4px); background: {{ tabLogBg }}; border: 1px solid {{ tabLogBd }}; color: {{ tabLogFg }}; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Log</div>
+      <div onClick="{{ viewIns }}" style="height: 48px; border-radius: var(--rs, 4px); background: {{ tabInsBg }}; border: 1px solid {{ tabInsBd }}; color: {{ tabInsFg }}; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Insights · Plan</div>
+    </div>
+
+    <!-- LOG VIEW -->
+    <sc-if value="{{ showLog }}" hint-placeholder-val="{{ true }}">
+      <sc-if value="{{ firstRun }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 90px 24px; text-align: center;">
+          <div style="font-size: 13px; font-weight: 700; color: var(--sec, #9A9A9A); letter-spacing: 0.06em; text-transform: var(--tt, uppercase);">No workouts yet</div>
+          <div style="font-size: 11px; color: var(--mut, #6B6B6B); line-height: 1.8;">Finish your first workout and every set lands here — weight × reps @ RIR, most recent first.</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ notFirstRun }}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <div onClick="{{ openFilter }}" style="height: 44px; padding: 0 16px; border-radius: 999px; background: {{ filterBg }}; border: 1px solid {{ filterBd }}; color: {{ filterFg }}; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; display: flex; align-items: center; cursor: pointer; white-space: nowrap; text-transform: uppercase;">{{ filterLabel }} ▾</div>
+          <sc-if value="{{ filterActive }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ clearFilter }}" style="height: 44px; width: 44px; border-radius: 999px; background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--mut, #6B6B6B); font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer;">×</div>
+          </sc-if>
+          <div style="flex: 1;"></div>
+          <sc-if value="{{ filterSummary }}" hint-placeholder-val="{{ false }}">
+            <div style="font-variant-numeric: tabular-nums; font-size: 10px; color: var(--sec, #9A9A9A); letter-spacing: 0.04em; text-align: right;">{{ filterSummary }}</div>
+          </sc-if>
+        </div>
+        <sc-for list="{{ sessions }}" as="s" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 14px; padding: 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rl, 6px);">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <div style="display: flex; gap: 10px; align-items: baseline;">
+                <div style="font-size: 13px; font-weight: 700; color: var(--tx, #F2F2F2); letter-spacing: 0.04em; text-transform: var(--tt, uppercase);">{{ s.date }}</div>
+                <div style="font-size: 11px; color: var(--sec, #9A9A9A); letter-spacing: 0.04em; text-transform: var(--tt, uppercase);">{{ s.routine }}</div>
+              </div>
+              <div style="font-variant-numeric: tabular-nums; font-size: 10px; color: var(--dim, #4A4A4A); letter-spacing: 0.06em; text-transform: uppercase;">{{ s.mins }}</div>
+            </div>
+
+            <sc-for list="{{ s.exs }}" as="e2" hint-placeholder-count="3">
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--sec, #9A9A9A); letter-spacing: 0.06em; text-transform: var(--tt, uppercase);">{{ e2.name }}</div>
+                <div style="display: flex; gap: 8px; position: relative;">
+                  <div style="display: flex; flex-direction: column; flex-shrink: 0; width: 38px;">
+                    <div style="height: 18px;"></div>
+                    <div style="height: 22px; display: flex; align-items: center; font-size: 9px; letter-spacing: 0.12em; color: var(--dim, #4A4A4A); text-transform: uppercase;">kg</div>
+                    <div style="height: 18px; display: flex; align-items: center; font-size: 9px; letter-spacing: 0.12em; color: var(--dim, #4A4A4A); text-transform: uppercase;">reps</div>
+                    <div style="height: 18px; display: flex; align-items: center; font-size: 9px; letter-spacing: 0.12em; color: var(--dim, #4A4A4A); text-transform: uppercase;">rir</div>
+                  </div>
+                  <div onScroll="{{ e2.onScroll }}" style="overflow-x: auto; flex: 1;">
+                    <div style="display: flex; gap: 6px; min-width: max-content; padding-bottom: 4px;">
+                      <sc-for list="{{ e2.cells }}" as="c" hint-placeholder-count="4">
+                        <div style="display: flex; flex-direction: column; width: 56px; flex-shrink: 0; padding: 0 8px; border-left: 1px solid var(--bd, #1C1C1C);">
+                          <div style="height: 18px; display: flex; align-items: center; font-size: 9px; letter-spacing: 0.1em; color: var(--dim, #4A4A4A); text-transform: uppercase;">{{ c.n }}</div>
+                          <div style="height: 22px; display: flex; align-items: center; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; color: var(--tx, #F2F2F2);">{{ c.w }}</div>
+                          <div style="height: 18px; display: flex; align-items: center; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--sec, #9A9A9A);">{{ c.r }}</div>
+                          <div style="height: 18px; display: flex; align-items: center; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--mut, #6B6B6B);">{{ c.rir }}</div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <sc-if value="{{ e2.moreLeft }}" hint-placeholder-val="{{ false }}">
+                    <div style="position: absolute; left: 46px; top: 0; bottom: 4px; width: 44px; display: flex; align-items: center; justify-content: flex-start; background: linear-gradient(90deg, var(--fadebg, #000000), transparent); pointer-events: none;">
+                      <div style="font-size: 13px; font-weight: 700; color: var(--sec, #9A9A9A);">‹</div>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ e2.moreRight }}" hint-placeholder-val="{{ false }}">
+                    <div style="position: absolute; right: 0; top: 0; bottom: 4px; width: 44px; display: flex; align-items: center; justify-content: flex-end; background: linear-gradient(90deg, transparent, var(--fadebg, #000000)); pointer-events: none;">
+                      <div style="font-size: 13px; font-weight: 700; color: var(--sec, #9A9A9A);">›</div>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noSessions }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size: 12px; color: var(--dim, #4A4A4A); text-align: center; padding: 24px 0;">No sets match this filter</div>
+        </sc-if>
+        <div style="font-size: 10px; letter-spacing: 0.06em; color: var(--dim, #4A4A4A); text-align: center; padding-top: 4px; text-transform: uppercase;">Working sets only · warm-ups excluded · most recent first</div>
+      </div>
+      </sc-if>
+    </sc-if>
+
+    <!-- PLAN / INSIGHTS VIEW -->
+    <sc-if value="{{ showIns }}" hint-placeholder-val="{{ false }}">
+      <sc-if value="{{ firstRun }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 90px 24px; text-align: center;">
+          <div style="font-size: 13px; font-weight: 700; color: var(--sec, #9A9A9A); letter-spacing: 0.06em; text-transform: var(--tt, uppercase);">Nothing to plan yet</div>
+          <div style="font-size: 11px; color: var(--mut, #6B6B6B); line-height: 1.8;">Suggestions and muscle balance appear after a few logged workouts.</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ notFirstRun }}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+
+        <!-- plan header -->
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rl, 6px);">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-size: 13px; font-weight: 700; color: var(--tx, #F2F2F2); letter-spacing: 0.04em; text-transform: var(--tt, uppercase);">Plan · Build strength</div>
+          </div>
+          <div style="font-size: 11px; color: var(--mut, #6B6B6B); line-height: 1.6;">Suggestions are computed from your log. Accepting one sets a weight target the workout screen will show — targets expire after 4 weeks so the plan keeps adjusting.</div>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="font-size: 10px; letter-spacing: 0.14em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Averaged over</div>
+            <div style="display: flex; gap: 6px;">
+              <sc-for list="{{ weekChips }}" as="wc" hint-placeholder-count="4">
+                <div onClick="{{ wc.pick }}" style="height: 44px; padding: 0 12px; border-radius: var(--rs, 4px); background: {{ wc.bg }}; border: 1px solid {{ wc.bd }}; color: {{ wc.fg }}; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; display: flex; align-items: center; cursor: pointer;">{{ wc.label }}</div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <!-- active targets -->
+        <div style="display: flex; align-items: center; gap: 10px; padding-top: 4px;">
+          <div style="font-size: 9px; letter-spacing: 0.2em; color: var(--mut, #6B6B6B); text-transform: uppercase; white-space: nowrap;">Active targets</div>
+          <div style="flex: 1; height: 1px; background: var(--bd, #1C1C1C);"></div>
+        </div>
+        <sc-for list="{{ targetRows }}" as="tr2" hint-placeholder-count="1">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px);">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+              <div style="font-size: 12px; font-weight: 700; color: var(--tx, #F2F2F2); letter-spacing: 0.03em; text-transform: var(--tt, uppercase);">{{ tr2.name }}</div>
+              <div style="font-variant-numeric: tabular-nums; font-size: 10px; color: var(--mut, #6B6B6B); letter-spacing: 0.04em;">{{ tr2.sub }}</div>
+            </div>
+            <div style="font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 800; color: var(--numc, #FFFFFF); white-space: nowrap;">{{ tr2.w }}</div>
+            <div onClick="{{ tr2.remove }}" style="width: 44px; height: 44px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--mut, #6B6B6B); font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer;">×</div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noTargets }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size: 11px; color: var(--dim, #4A4A4A); text-align: center; padding: 8px 0;">No active targets — accept a suggestion below</div>
+        </sc-if>
+
+        <!-- suggestions -->
+        <div style="display: flex; align-items: center; gap: 10px; padding-top: 4px;">
+          <div style="font-size: 9px; letter-spacing: 0.2em; color: var(--mut, #6B6B6B); text-transform: uppercase; white-space: nowrap;">Suggested adjustments</div>
+          <div style="flex: 1; height: 1px; background: var(--bd, #1C1C1C);"></div>
+        </div>
+        <sc-for list="{{ insights }}" as="card" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--cardbg, #0A0A0A); border: 1px solid var(--cardbd, #333333); border-radius: var(--rl, 6px);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+              <div style="font-size: 13px; font-weight: 700; color: var(--tx, #F2F2F2); letter-spacing: 0.04em; text-transform: var(--tt, uppercase);">{{ card.name }}</div>
+              <div style="font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: {{ card.actionFg }}; border: 1px solid var(--bds, #333333); padding: 6px 9px; border-radius: 999px; white-space: nowrap; text-transform: uppercase;">{{ card.action }}</div>
+            </div>
+            <div style="font-variant-numeric: tabular-nums; font-size: 11px; color: var(--mut, #6B6B6B); line-height: 1.6; letter-spacing: 0.02em;">{{ card.finding }}</div>
+            <sc-if value="{{ card.accepted }}" hint-placeholder-val="{{ false }}">
+              <div style="font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; color: var(--sec, #9A9A9A); letter-spacing: 0.03em;">✓ Target set · {{ card.sugg }}</div>
+            </sc-if>
+            <sc-if value="{{ card.notAccepted }}" hint-placeholder-val="{{ true }}">
+              <div onClick="{{ card.accept }}" style="height: 52px; border-radius: var(--rs, 4px); background: var(--acc, #C8FF2E); color: var(--onacc, #000000); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 800; letter-spacing: 0.04em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Set target · {{ card.sugg }}</div>
+            </sc-if>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noInsights }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size: 12px; color: var(--dim, #4A4A4A); text-align: center; padding: 24px 0;">No adjustments suggested — current targets look right</div>
+        </sc-if>
+
+        <!-- muscle balance -->
+        <div style="display: flex; align-items: center; gap: 10px; padding-top: 4px;">
+          <div style="font-size: 9px; letter-spacing: 0.2em; color: var(--mut, #6B6B6B); text-transform: uppercase; white-space: nowrap;">Muscle balance · sets per week</div>
+          <div style="flex: 1; height: 1px; background: var(--bd, #1C1C1C);"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <sc-for list="{{ balance }}" as="b" hint-placeholder-count="5">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px);">
+              <div style="width: 84px; font-size: 11px; font-weight: 700; color: var(--sec, #9A9A9A); letter-spacing: 0.06em; text-transform: uppercase;">{{ b.g }}</div>
+              <div style="font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 800; color: var(--numc, #FFFFFF); width: 30px;">{{ b.v }}</div>
+              <div style="flex: 1; font-variant-numeric: tabular-nums; font-size: 10px; color: var(--dim, #4A4A4A); letter-spacing: 0.04em; text-transform: uppercase;">band {{ b.band }}</div>
+              <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: {{ b.statusFg }}; text-transform: uppercase;">{{ b.status }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="font-size: 10px; letter-spacing: 0.04em; color: var(--dim, #4A4A4A); text-align: center; line-height: 1.7; text-transform: uppercase; padding-top: 4px;">Lower first: ≥40% of sets at RIR 0 and reps below target<br>Then add: average RIR ≥ target + 1</div>
+      </div>
+      </sc-if>
+    </sc-if>
+  </div>
+
+  <!-- FILTER SHEET -->
+  <sc-if value="{{ filterOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ filterClose }}" style="position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 50; display: flex; align-items: flex-end; justify-content: center;">
+      <div onClick="{{ swallow }}" style="width: 100%; max-width: 430px; max-height: 80vh; overflow-y: auto; background: var(--cardbg, #0A0A0A); border: 1px solid var(--cardbd, #333333); border-radius: var(--rl, 6px) var(--rl, 6px) 0 0; padding: 20px 18px 26px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 11px; letter-spacing: 0.16em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Filter log</div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="font-size: 9px; letter-spacing: 0.2em; color: var(--mut, #6B6B6B); text-transform: uppercase; white-space: nowrap;">Muscle group</div>
+          <div style="flex: 1; height: 1px; background: var(--bd, #1C1C1C);"></div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <sc-for list="{{ groupChips }}" as="g" hint-placeholder-count="5">
+            <div onClick="{{ g.pick }}" style="height: 40px; padding: 0 14px; border-radius: 999px; background: {{ g.bg }}; border: 1px solid {{ g.bd }}; color: {{ g.fg }}; font-size: 11px; letter-spacing: 0.06em; display: flex; align-items: center; cursor: pointer; text-transform: uppercase;">{{ g.label }}</div>
+          </sc-for>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; padding-top: 2px;">
+          <div style="font-size: 9px; letter-spacing: 0.2em; color: var(--mut, #6B6B6B); text-transform: uppercase; white-space: nowrap;">Exercise</div>
+          <div style="flex: 1; height: 1px; background: var(--bd, #1C1C1C);"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <sc-for list="{{ exOptions }}" as="eo" hint-placeholder-count="6">
+            <div onClick="{{ eo.pick }}" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 13px 14px; background: {{ eo.bg }}; border: 1px solid {{ eo.bd }}; border-radius: var(--rs, 4px); cursor: pointer;">
+              <div style="font-size: 13px; font-weight: 700; color: {{ eo.fg }}; letter-spacing: 0.03em; text-transform: var(--tt, uppercase);">{{ eo.name }}</div>
+              <div style="font-variant-numeric: tabular-nums; font-size: 10px; letter-spacing: 0.08em; color: {{ eo.subFg }}; text-transform: uppercase;">{{ eo.sub }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:844},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;volt&quot;,&quot;ember&quot;],&quot;default&quot;:&quot;volt&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.TARGETS = {
+      'Bench Press': { reps: 8, rir: 2 },
+      'Incline DB Press': { reps: 10, rir: 2 },
+      'Cable Fly': { reps: 12, rir: 1 },
+      'Lat Pulldown': { reps: 10, rir: 2 },
+      'Seated Cable Row': { reps: 10, rir: 2 },
+      'Lateral Raise': { reps: 12, rir: 2 },
+      'Skullcrusher': { reps: 10, rir: 2 }
+    };
+    // sets: [weight, reps, rir], most recent session first; wk = whole weeks ago
+    this.SESSIONS = [
+      { date: 'Fri Jul 4', routine: 'Push A', mins: '58 min', wk: 0, exs: [
+        { name: 'Bench Press', sets: [[62.5, 8, 2], [62.5, 8, 2], [62.5, 8, 2], [62.5, 7, 3]] },
+        { name: 'Incline DB Press', sets: [[26, 10, 2], [26, 10, 2], [26, 9, 2]] },
+        { name: 'Cable Fly', sets: [[25, 12, 1], [25, 12, 1], [25, 11, 1]] }
+      ] },
+      { date: 'Tue Jul 1', routine: 'Pull A', mins: '54 min', wk: 0, exs: [
+        { name: 'Lat Pulldown', sets: [[57, 10, 3], [57, 10, 3], [57, 10, 4], [57, 9, 3], [54.5, 10, 3], [54.5, 9, 3]] },
+        { name: 'Seated Cable Row', sets: [[55, 10, 2], [55, 10, 2], [55, 10, 2]] },
+        { name: 'Skullcrusher', sets: [[20, 8, 0], [20, 7, 0], [20, 7, 1]] }
+      ] },
+      { date: 'Fri Jun 27', routine: 'Push A', mins: '61 min', wk: 1, exs: [
+        { name: 'Bench Press', sets: [[60, 10, 3], [60, 10, 3], [60, 9, 3], [60, 10, 3]] },
+        { name: 'Incline DB Press', sets: [[24, 10, 3], [24, 10, 2], [24, 10, 3]] },
+        { name: 'Lateral Raise', sets: [[8, 12, 3], [8, 12, 4], [8, 12, 3]] }
+      ] },
+      { date: 'Tue Jun 24', routine: 'Pull A', mins: '52 min', wk: 1, exs: [
+        { name: 'Lat Pulldown', sets: [[57, 10, 3], [57, 10, 3], [57, 9, 3]] },
+        { name: 'Skullcrusher', sets: [[20, 8, 0], [20, 8, 1], [20, 7, 0]] }
+      ] },
+      { date: 'Fri Jun 20', routine: 'Push A', mins: '57 min', wk: 2, exs: [
+        { name: 'Bench Press', sets: [[60, 8, 3], [60, 8, 3], [60, 8, 4], [60, 8, 3]] },
+        { name: 'Lateral Raise', sets: [[8, 12, 3], [8, 12, 3], [8, 11, 4]] }
+      ] },
+      { date: 'Fri Jun 13', routine: 'Push A', mins: '55 min', wk: 3, exs: [
+        { name: 'Bench Press', sets: [[57.5, 8, 2], [57.5, 8, 2], [57.5, 8, 2], [57.5, 8, 2]] },
+        { name: 'Cable Fly', sets: [[25, 12, 1], [25, 12, 1], [25, 12, 1]] }
+      ] },
+      { date: 'Fri Jun 6', routine: 'Push A', mins: '56 min', wk: 4, exs: [
+        { name: 'Bench Press', sets: [[55, 8, 2], [55, 8, 2], [55, 7, 2], [55, 8, 3]] }
+      ] }
+    ];
+    this.BALANCE = [
+      { g: 'chest', v: 12, band: '10–20' },
+      { g: 'back', v: 13, band: '10–20' },
+      { g: 'shoulders', v: 9, band: '10–20' },
+      { g: 'arms', v: 8, band: '10–20' },
+      { g: 'legs', v: 12, band: '10–20' }
+    ];
+    this.GROUPS = {
+      'Bench Press': 'chest', 'Incline DB Press': 'chest', 'Cable Fly': 'chest',
+      'Lat Pulldown': 'back', 'Seated Cable Row': 'back',
+      'Lateral Raise': 'shoulders', 'Skullcrusher': 'arms'
+    };
+    this.state = { theme: null, view: 'log', weeks: 4, filter: null, filterOpen: false, firstRun: false, scrollEnd: {}, targets: { 'Bench Press': { w: 62.5, weeksLeft: 3, sub: '8 @ RIR 2' } } };
+    this.rootEl = null;
+    this.rootRef = (el) => { this.rootEl = el; this.applyTheme(); };
+  }
+
+  themeName() { return this.state.theme || (this.props.theme != null ? this.props.theme : 'volt'); }
+
+  themes() {
+    return {
+      volt: {
+        '--bg': '#000000', '--bds': '#333333', '--bd': '#1C1C1C',
+        '--tx': '#F2F2F2', '--mut': '#6B6B6B', '--dim': '#4A4A4A', '--sec': '#9A9A9A',
+        '--acc': '#C8FF2E', '--onacc': '#000000',
+        '--f': "'JetBrains Mono', monospace", '--tt': 'uppercase',
+        '--rs': '4px', '--rl': '6px',
+        '--rowbg': 'transparent', '--rowbd': '#1C1C1C',
+        '--stepbg': 'transparent', '--stepbd': '#333333',
+        '--cardbg': '#0A0A0A', '--cardbd': '#333333', '--numc': '#FFFFFF', '--fadebg': '#000000'
+      },
+      ember: {
+        '--bg': '#17120E', '--bds': '#4A3D2C', '--bd': '#2E261D',
+        '--tx': '#F5EDE3', '--mut': '#A79684', '--dim': '#7D7060', '--sec': '#C9B79E',
+        '--acc': '#FF6A2B', '--onacc': '#1A0F05',
+        '--f': "'JetBrains Mono', monospace", '--tt': 'uppercase',
+        '--rs': '4px', '--rl': '6px',
+        '--rowbg': '#1E1710', '--rowbd': 'transparent',
+        '--stepbg': '#2E251A', '--stepbd': 'transparent',
+        '--cardbg': '#221B13', '--cardbd': 'transparent', '--numc': '#FFF9F0', '--fadebg': '#1E1710'
+      }
+    };
+  }
+
+  applyTheme() {
+    if (!this.rootEl) return;
+    var t = this.themes()[this.themeName()] || this.themes().volt;
+    for (var k in t) this.rootEl.style.setProperty(k, t[k]);
+  }
+
+  componentDidMount() { this.applyTheme(); }
+  componentDidUpdate() { this.applyTheme(); }
+
+  fmtW(w) { return (Math.round(w * 10) / 10).toString(); }
+
+  computeInsights(weeks) {
+    var self = this;
+    var byEx = {};
+    this.SESSIONS.forEach(function (s) {
+      if (s.wk >= weeks) return;
+      s.exs.forEach(function (e) {
+        if (!byEx[e.name]) byEx[e.name] = { sets: [], sessions: 0, lastW: null };
+        byEx[e.name].sessions += 1;
+        if (byEx[e.name].lastW === null) byEx[e.name].lastW = e.sets[0][0];
+        e.sets.forEach(function (t) { byEx[e.name].sets.push(t); });
+      });
+    });
+    var out = [];
+    Object.keys(byEx).forEach(function (name) {
+      var tgt = self.TARGETS[name];
+      if (!tgt) return;
+      var d = byEx[name];
+      var n = d.sets.length;
+      var avgRir = d.sets.reduce(function (a, t) { return a + t[2]; }, 0) / n;
+      var avgReps = d.sets.reduce(function (a, t) { return a + t[1]; }, 0) / n;
+      var pct0 = d.sets.filter(function (t) { return t[2] === 0; }).length / n;
+      var incr = d.lastW >= 20 ? 2.5 : 1;
+      if (pct0 >= 0.4 && avgReps < tgt.reps) {
+        var downW = Math.round((d.lastW * 0.9) / 1.25) * 1.25;
+        out.push({
+          score: 100 + (tgt.reps - avgReps),
+          name: name,
+          suggW: downW,
+          tgtSub: tgt.reps + ' @ RIR ' + tgt.rir,
+          action: '↓ Lower weight',
+          actionFg: 'var(--tx)',
+          finding: Math.round(pct0 * 100) + '% of sets at RIR 0 · avg ' + (Math.round(avgReps * 10) / 10) + ' reps vs target ' + tgt.reps + ' · ' + d.sessions + ' sessions',
+          sugg: self.fmtW(d.lastW) + ' → ' + self.fmtW(downW) + ' kg'
+        });
+      } else if (avgRir - tgt.rir >= 1) {
+        out.push({
+          score: avgRir - tgt.rir,
+          name: name,
+          suggW: d.lastW + incr,
+          tgtSub: tgt.reps + ' @ RIR ' + tgt.rir,
+          action: '↑ Add weight',
+          actionFg: 'var(--sec)',
+          finding: 'Avg RIR ' + (Math.round(avgRir * 10) / 10) + ' vs target ' + tgt.rir + ' · ' + n + ' sets over ' + d.sessions + ' sessions',
+          sugg: self.fmtW(d.lastW) + ' → ' + self.fmtW(d.lastW + incr) + ' kg'
+        });
+      }
+    });
+    out.sort(function (a, b) { return b.score - a.score; });
+    return out;
+  }
+
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var isLog = st.view === 'log';
+
+    var filter = st.filter;
+    var matchEx = function (name) {
+      if (!filter) return true;
+      if (filter.type === 'ex') return name === filter.value;
+      return (self.GROUPS[name] || 'other') === filter.value;
+    };
+    var srcSessions = st.firstRun ? [] : this.SESSIONS.map(function (s) {
+      return Object.assign({}, s, { exs: s.exs.filter(function (e) { return matchEx(e.name); }) });
+    }).filter(function (s) { return s.exs.length > 0; });
+    var sessions = srcSessions.map(function (s) {
+      return {
+        date: s.date,
+        routine: s.routine,
+        mins: s.mins,
+        exs: s.exs.map(function (e) {
+          var k = s.date + '|' + e.name;
+          return {
+            name: e.name,
+            cells: e.sets.map(function (t, i) {
+              return { n: 'S' + (i + 1), w: self.fmtW(t[0]), r: t[1], rir: t[2] };
+            }),
+            moreRight: e.sets.length > 5 && !(st.scrollEnd[k] && st.scrollEnd[k].end),
+            moreLeft: !!(st.scrollEnd[k] && st.scrollEnd[k].scrolled),
+            onScroll: function (ev) {
+              var el = ev.target;
+              var atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 8;
+              var scrolled = el.scrollLeft > 8;
+              var cur = self.state.scrollEnd[k] || {};
+              if (!!cur.end !== atEnd || !!cur.scrolled !== scrolled) {
+                var m = Object.assign({}, self.state.scrollEnd);
+                m[k] = { end: atEnd, scrolled: scrolled };
+                self.setState({ scrollEnd: m });
+              }
+            }
+          };
+        })
+      };
+    });
+
+    var insights = this.computeInsights(st.weeks).map(function (card) {
+      var accepted = !!st.targets[card.name];
+      return Object.assign({}, card, {
+        accepted: accepted,
+        notAccepted: !accepted,
+        accept: function () {
+          var t2 = Object.assign({}, self.state.targets);
+          t2[card.name] = { w: card.suggW, weeksLeft: 4, sub: card.tgtSub };
+          self.setState({ targets: t2 });
+        }
+      });
+    });
+
+    var targetRows = Object.keys(st.targets).map(function (name) {
+      var t = st.targets[name];
+      return {
+        name: name,
+        sub: t.sub + ' · ' + t.weeksLeft + ' wk left',
+        w: self.fmtW(t.w) + ' kg',
+        remove: function () {
+          var t2 = Object.assign({}, self.state.targets);
+          delete t2[name];
+          self.setState({ targets: t2 });
+        }
+      };
+    });
+
+    var balance = this.BALANCE.map(function (b) {
+      var lo = parseInt(b.band, 10);
+      var ok = b.v >= lo;
+      return { g: b.g, v: b.v, band: b.band, status: ok ? 'OK' : 'Low', statusFg: ok ? 'var(--dim)' : 'var(--tx)' };
+    });
+
+    var weekChips = [2, 4, 6, 8].map(function (w) {
+      var sel = st.weeks === w;
+      return {
+        label: w + 'wk',
+        bg: sel ? 'var(--acc)' : 'var(--stepbg)',
+        bd: sel ? 'var(--acc)' : 'var(--stepbd)',
+        fg: sel ? 'var(--onacc)' : 'var(--sec)',
+        pick: function () { self.setState({ weeks: w }); }
+      };
+    });
+
+    var exStats = {};
+    this.SESSIONS.forEach(function (s) {
+      s.exs.forEach(function (e) {
+        if (!exStats[e.name]) exStats[e.name] = { sessions: 0, latestW: null, oldestW: null };
+        exStats[e.name].sessions += 1;
+        if (exStats[e.name].latestW === null) exStats[e.name].latestW = e.sets[0][0];
+        exStats[e.name].oldestW = e.sets[0][0];
+      });
+    });
+    var groupChips = ['chest', 'back', 'shoulders', 'arms'].map(function (g) {
+      var sel = !!filter && filter.type === 'group' && filter.value === g;
+      return {
+        label: g,
+        bg: sel ? 'var(--acc)' : 'var(--stepbg)',
+        bd: sel ? 'var(--acc)' : 'var(--stepbd)',
+        fg: sel ? 'var(--onacc)' : 'var(--sec)',
+        pick: function () { self.setState({ filter: sel ? null : { type: 'group', value: g }, filterOpen: false }); }
+      };
+    });
+    var exOptions = Object.keys(exStats).sort().map(function (name) {
+      var sel = !!filter && filter.type === 'ex' && filter.value === name;
+      return {
+        name: name,
+        sub: (self.GROUPS[name] || '') + ' · ' + exStats[name].sessions + (exStats[name].sessions === 1 ? ' session' : ' sessions'),
+        bg: sel ? 'var(--acc)' : 'var(--rowbg)',
+        bd: sel ? 'var(--acc)' : 'var(--rowbd)',
+        fg: sel ? 'var(--onacc)' : 'var(--tx)',
+        subFg: sel ? 'var(--onacc)' : 'var(--dim)',
+        pick: function () { self.setState({ filter: sel ? null : { type: 'ex', value: name }, filterOpen: false }); }
+      };
+    });
+    var filterSummary = '';
+    if (filter && filter.type === 'ex' && exStats[filter.value]) {
+      var fst = exStats[filter.value];
+      filterSummary = fst.sessions + (fst.sessions === 1 ? ' session' : ' sessions') + ' · ' + this.fmtW(fst.oldestW) + ' → ' + this.fmtW(fst.latestW) + ' kg';
+    }
+
+    var tab = function (sel) {
+      return {
+        bg: sel ? 'var(--acc)' : 'var(--stepbg)',
+        bd: sel ? 'var(--acc)' : 'var(--stepbd)',
+        fg: sel ? 'var(--onacc)' : 'var(--sec)'
+      };
+    };
+    var tL = tab(isLog), tI = tab(!isLog);
+
+    return {
+      rootRef: this.rootRef,
+      themeLabel: this.themeName() === 'volt' ? 'Volt ⇄' : 'Ember ⇄',
+      toggleTheme: function () { self.setState({ theme: self.themeName() === 'volt' ? 'ember' : 'volt' }); },
+      viewLog: function () { self.setState({ view: 'log' }); },
+      viewIns: function () { self.setState({ view: 'insights' }); },
+      tabLogBg: tL.bg, tabLogBd: tL.bd, tabLogFg: tL.fg,
+      tabInsBg: tI.bg, tabInsBd: tI.bd, tabInsFg: tI.fg,
+      showLog: isLog,
+      showIns: !isLog,
+      sessions: sessions,
+      noSessions: sessions.length === 0,
+      firstRun: st.firstRun,
+      notFirstRun: !st.firstRun,
+      toggleFirstRun: function () { self.setState({ firstRun: !self.state.firstRun }); },
+      frBg: st.firstRun ? 'var(--acc)' : 'transparent',
+      frBd: st.firstRun ? 'var(--acc)' : 'var(--bds)',
+      frFg: st.firstRun ? 'var(--onacc)' : 'var(--mut)',
+      filterOpen: st.filterOpen,
+      openFilter: function () { self.setState({ filterOpen: true }); },
+      filterClose: function () { self.setState({ filterOpen: false }); },
+      clearFilter: function () { self.setState({ filter: null }); },
+      filterActive: !!filter,
+      filterLabel: filter ? filter.value : 'All exercises',
+      filterBg: filter ? 'var(--acc)' : 'var(--stepbg)',
+      filterBd: filter ? 'var(--acc)' : 'var(--stepbd)',
+      filterFg: filter ? 'var(--onacc)' : 'var(--sec)',
+      filterSummary: filterSummary,
+      groupChips: groupChips,
+      exOptions: exOptions,
+      swallow: function (ev) { ev.stopPropagation(); },
+      weekChips: weekChips,
+      insights: insights,
+      noInsights: insights.length === 0,
+      targetRows: targetRows,
+      noTargets: targetRows.length === 0,
+      balance: balance
+    };
+  }
+}
+</script>
+</body>
+</html>

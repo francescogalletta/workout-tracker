@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #000; }
+    input::placeholder { color: #6B6B6B; opacity: 1; }
+  </style>
+</helmet>
+
+<div ref="{{ rootRef }}" style="min-height: 100vh; background: var(--bg, #000000); display: flex; justify-content: center; font-family: var(--f, 'JetBrains Mono', monospace);">
+  <div style="width: 100%; max-width: 430px; min-height: 100vh; display: flex; flex-direction: column; padding: 12px 20px 28px; box-sizing: border-box;">
+
+    <!-- prototype chrome -->
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0 14px;">
+      <div style="font-size: 10px; letter-spacing: 0.2em; color: var(--dim, #4A4A4A); text-transform: uppercase; white-space: nowrap;">Prototype · Sign in</div>
+      <div style="display: flex; gap: 8px;">
+        <div onClick="{{ resetFlow }}" style="height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--bds, #333333); color: var(--mut, #6B6B6B); font-size: 11px; letter-spacing: 0.1em; display: flex; align-items: center; cursor: pointer; text-transform: uppercase;">Reset</div>
+        <div onClick="{{ toggleTheme }}" style="height: 30px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--bds, #333333); color: var(--mut, #6B6B6B); font-size: 11px; letter-spacing: 0.1em; display: flex; align-items: center; cursor: pointer; text-transform: uppercase;">{{ themeLabel }}</div>
+      </div>
+    </div>
+
+    <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.24em; color: var(--dim, #4A4A4A); text-transform: uppercase;">Lift</div>
+
+    <!-- STEP: EMAIL -->
+    <sc-if value="{{ stepEmail }}" hint-placeholder-val="{{ true }}">
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px;">
+        <div style="font-size: 11px; letter-spacing: 0.18em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Sign in</div>
+        <div style="font-size: 32px; font-weight: 800; color: var(--tx, #F2F2F2); letter-spacing: 0.02em; line-height: 1.15; text-transform: var(--tt, uppercase);">Magic code,<br>no password</div>
+        <input value="{{ emailVal }}" onChange="{{ emailChange }}" type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" style="height: 56px; width: 100%; margin-top: 10px; padding: 0 16px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-family: inherit; font-size: 15px; outline: none; box-sizing: border-box;">
+        <div style="font-size: 11px; color: var(--dim, #4A4A4A); line-height: 1.7;">We'll email a one-time code. Sign in once per device — after that the app opens straight to your workout, online or off.</div>
+      </div>
+      <div onClick="{{ sendCode }}" style="height: 68px; border-radius: var(--rl, 6px); background: var(--acc, #C8FF2E); color: var(--onacc, #000000); font-size: 16px; font-weight: 800; letter-spacing: 0.08em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Send code</div>
+    </sc-if>
+
+    <!-- STEP: CODE -->
+    <sc-if value="{{ stepCode }}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px;">
+        <div style="font-size: 11px; letter-spacing: 0.18em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Enter code</div>
+        <div style="font-size: 12px; color: var(--sec, #9A9A9A); letter-spacing: 0.03em;">Sent to {{ emailShown }}</div>
+        <input value="{{ codeVal }}" onChange="{{ codeChange }}" inputMode="numeric" maxLength="6" placeholder="······" style="height: 72px; width: 100%; margin-top: 10px; padding: 0 16px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--tx, #F2F2F2); font-family: inherit; font-variant-numeric: tabular-nums; font-size: 34px; font-weight: 800; letter-spacing: 0.4em; text-align: center; outline: none; box-sizing: border-box;">
+        <div onClick="{{ backToEmail }}" style="font-size: 11px; letter-spacing: 0.1em; color: var(--dim, #4A4A4A); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; align-self: flex-start; padding: 8px 0; text-transform: var(--tt, uppercase);">Use a different email</div>
+      </div>
+      <div onClick="{{ signIn }}" style="height: 68px; border-radius: var(--rl, 6px); background: var(--acc, #C8FF2E); color: var(--onacc, #000000); font-size: 16px; font-weight: 800; letter-spacing: 0.08em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-transform: var(--tt, uppercase);">Sign in</div>
+    </sc-if>
+
+    <!-- STEP: DONE -->
+    <sc-if value="{{ stepDone }}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px;">
+        <div style="font-size: 11px; letter-spacing: 0.18em; color: var(--mut, #6B6B6B); text-transform: uppercase;">Signed in</div>
+        <div style="font-size: 44px; font-weight: 800; color: var(--tx, #F2F2F2); letter-spacing: 0.02em; text-transform: var(--tt, uppercase);">Ready.</div>
+        <div style="font-size: 12px; color: var(--mut, #6B6B6B); line-height: 1.7; letter-spacing: 0.04em; text-transform: var(--tt, uppercase);">873 exercises loaded<br>Works offline · syncs when online</div>
+      </div>
+      <a href="Home.dc.html" style="height: 68px; border-radius: var(--rl, 6px); background: var(--acc, #C8FF2E); color: var(--onacc, #000000); font-size: 16px; font-weight: 800; letter-spacing: 0.08em; display: flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; text-transform: var(--tt, uppercase);">Continue</a>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:844},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;volt&quot;,&quot;ember&quot;],&quot;default&quot;:&quot;volt&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { theme: null, step: 'email', email: '', code: '' };
+    this.rootEl = null;
+    this.rootRef = (el) => { this.rootEl = el; this.applyTheme(); };
+  }
+
+  themeName() { return this.state.theme || (this.props.theme != null ? this.props.theme : 'volt'); }
+
+  themes() {
+    return {
+      volt: {
+        '--bg': '#000000', '--bds': '#333333', '--bd': '#1C1C1C',
+        '--tx': '#F2F2F2', '--mut': '#6B6B6B', '--dim': '#4A4A4A', '--sec': '#9A9A9A',
+        '--acc': '#C8FF2E', '--onacc': '#000000',
+        '--f': "'JetBrains Mono', monospace", '--tt': 'uppercase',
+        '--rs': '4px', '--rl': '6px',
+        '--stepbg': 'transparent', '--stepbd': '#333333'
+      },
+      ember: {
+        '--bg': '#17120E', '--bds': '#4A3D2C', '--bd': '#2E261D',
+        '--tx': '#F5EDE3', '--mut': '#A79684', '--dim': '#7D7060', '--sec': '#C9B79E',
+        '--acc': '#FF6A2B', '--onacc': '#1A0F05',
+        '--f': "'JetBrains Mono', monospace", '--tt': 'uppercase',
+        '--rs': '4px', '--rl': '6px',
+        '--stepbg': '#2E251A', '--stepbd': 'transparent'
+      }
+    };
+  }
+
+  applyTheme() {
+    if (!this.rootEl) return;
+    var t = this.themes()[this.themeName()] || this.themes().volt;
+    for (var k in t) this.rootEl.style.setProperty(k, t[k]);
+  }
+
+  componentDidMount() { this.applyTheme(); }
+  componentDidUpdate() { this.applyTheme(); }
+
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    return {
+      rootRef: this.rootRef,
+      themeLabel: this.themeName() === 'volt' ? 'Volt ⇄' : 'Ember ⇄',
+      toggleTheme: function () { self.setState({ theme: self.themeName() === 'volt' ? 'ember' : 'volt' }); },
+      resetFlow: function () { self.setState({ step: 'email', email: '', code: '' }); },
+      stepEmail: st.step === 'email',
+      stepCode: st.step === 'code',
+      stepDone: st.step === 'done',
+      emailVal: st.email,
+      emailChange: function (e) { self.setState({ email: e.target.value }); },
+      emailShown: st.email || 'you@example.com',
+      sendCode: function () { self.setState({ step: 'code' }); },
+      codeVal: st.code,
+      codeChange: function (e) { self.setState({ code: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) }); },
+      backToEmail: function () { self.setState({ step: 'email', code: '' }); },
+      signIn: function () { self.setState({ step: 'done' }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

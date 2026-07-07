@@ -1,0 +1,154 @@
+@import 'tailwindcss';
+
+/* Volt theme (default) — frozen tokens from design_handoff_lift/theme-tokens.md */
+:root {
+  --bg: #000000;
+  --sur: #0a0a0a;
+  --bd: #222222;
+  --bds: #333333;
+  --tx: #f2f2f2;
+  --mut: #6b6b6b;
+  --dim: #4a4a4a;
+  --sec: #9a9a9a;
+  --acc: #c8ff2e;
+  --onacc: #000000;
+  --rzn: #6b6b6b;
+  --rs: 4px;
+  --rl: 6px;
+  --rowbg: transparent;
+  --rowbd: #1c1c1c;
+  --wubg: transparent;
+  --wubd: #161616;
+  --stepbg: transparent;
+  --stepbd: #333333;
+  --cardbg: #0a0a0a;
+  --cardbd: #333333;
+  --numc: #ffffff;
+  /* Background behind History's set-table edge fades. Follows --bg so the
+     gradient dissolves into the real page colour in BOTH themes (Ember's bg
+     is brown, not black — a hardcoded #000 fallback smeared dark over it). */
+  --fadebg: var(--bg);
+}
+
+/*
+ * Ember theme — from design/theme-tokens.md (NOT the prototype approximation,
+ * which stayed mono/uppercase). Ember uses FILLED surfaces instead of outlines:
+ * row/step/card backgrounds become opaque insets and their borders go
+ * transparent. Archivo + sentence case (--tt: none), soft 12–18px radii.
+ * Numerals stay tabular in both themes (the `font-mono`/`tabular-nums` utilities
+ * are untouched; body copy follows --f).
+ *
+ * Same specificity as :root but later in source order, so it wins on <html>.
+ */
+[data-theme='ember'] {
+  --bg: #17120e;
+  --sur: #221b13;
+  --bd: #2e261d;
+  --bds: #4a3d2c;
+  --tx: #f5ede3;
+  --mut: #9a8b78;
+  --dim: #6e6153;
+  --sec: #c9b79e;
+  --acc: #ff6a2b;
+  --onacc: #1a0f05;
+  --rzn: #c08a5a;
+  --rs: 12px;
+  --rl: 18px;
+  --rowbg: #1e1710;
+  --rowbd: transparent;
+  --wubg: #1b140e;
+  --wubd: transparent;
+  --stepbg: #2e251a;
+  --stepbd: transparent;
+  --cardbg: #221b13;
+  --cardbd: transparent;
+  --numc: #fff9f0;
+  --tt: none;
+  --f: 'Archivo', system-ui, sans-serif;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-sur: var(--sur);
+  --color-bd: var(--bd);
+  --color-bds: var(--bds);
+  --color-tx: var(--tx);
+  --color-mut: var(--mut);
+  --color-dim: var(--dim);
+  --color-sec: var(--sec);
+  --color-acc: var(--acc);
+  --color-onacc: var(--onacc);
+  --color-rzn: var(--rzn);
+  --color-rowbg: var(--rowbg);
+  --color-rowbd: var(--rowbd);
+  --color-wubg: var(--wubg);
+  --color-wubd: var(--wubd);
+  --color-stepbg: var(--stepbg);
+  --color-stepbd: var(--stepbd);
+  --color-cardbg: var(--cardbg);
+  --color-cardbd: var(--cardbd);
+  --color-numc: var(--numc);
+  --radius-rs: var(--rs);
+  --radius-rl: var(--rl);
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+html,
+body {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  /* Body font follows the theme: Ember sets --f to Archivo; Volt leaves it
+     unset so the JetBrains Mono fallback keeps Volt pixel-identical. */
+  font-family: var(--f, 'JetBrains Mono', ui-monospace, monospace);
+  color: var(--tx);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+
+input::placeholder {
+  color: var(--mut);
+  opacity: 1;
+}
+
+@keyframes ovl-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@utility animate-ovl-up {
+  animation: ovl-up 0.22s ease-out;
+}
+
+/*
+ * Labels that are UPPERCASE in Volt but sentence case in Ember.
+ * Ember's override block sets --tt: none; Volt leaves it unset so the
+ * fallback applies. Micro-labels that stay uppercase in BOTH themes keep
+ * the plain `uppercase` utility instead.
+ */
+@utility tt-label {
+  text-transform: var(--tt, uppercase);
+}
+
+@utility animate-sheet-up {
+  animation: sheet-up 0.22s ease-out;
+}

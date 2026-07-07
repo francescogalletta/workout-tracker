@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #000; }
+  </style>
+</helmet>
+
+<div ref="{{ rootRef }}" style="min-height: 100vh; background: var(--bg, #000000); display: flex; justify-content: center; font-family: var(--f, 'JetBrains Mono', monospace);">
+  <div style="width: 100%; max-width: 430px; display: flex; flex-direction: column; padding: 12px 18px 28px; box-sizing: border-box;">
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0 14px;">
+      <div style="font-size: 10px; letter-spacing: 0.2em; color: var(--dim, #4A4A4A); text-transform: uppercase;">Prototype · Settings</div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 18px;">
+      <div style="font-size: 17px; font-weight: 700; letter-spacing: 0.05em; color: var(--tx, #F2F2F2); text-transform: var(--tt, uppercase);">Settings</div>
+      <a href="Home.dc.html" style="font-size: 12px; letter-spacing: 0.08em; color: var(--mut, #6B6B6B); text-decoration: underline; text-underline-offset: 3px; text-transform: var(--tt, uppercase);">Home</a>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+
+      <!-- theme -->
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px);">
+        <div style="font-size: 11px; letter-spacing: 0.1em; color: var(--tx, #F2F2F2); font-weight: 700; text-transform: uppercase;">Theme</div>
+        <div style="display: flex; gap: 6px;">
+          <sc-for list="{{ themeChips }}" as="tc" hint-placeholder-count="2">
+            <div onClick="{{ tc.pick }}" style="height: 48px; padding: 0 16px; border-radius: var(--rs, 4px); background: {{ tc.bg }}; border: 1px solid {{ tc.bd }}; color: {{ tc.fg }}; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; display: flex; align-items: center; cursor: pointer; text-transform: var(--tt, uppercase);">{{ tc.label }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- default unit -->
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px);">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 11px; letter-spacing: 0.1em; color: var(--tx, #F2F2F2); font-weight: 700; text-transform: uppercase;">Default unit</div>
+          <div style="font-size: 10px; color: var(--mut, #6B6B6B); letter-spacing: 0.03em;">Per-exercise override available · stored in kg</div>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <sc-for list="{{ unitChips }}" as="uc" hint-placeholder-count="2">
+            <div onClick="{{ uc.pick }}" style="height: 48px; padding: 0 16px; border-radius: var(--rs, 4px); background: {{ uc.bg }}; border: 1px solid {{ uc.bd }}; color: {{ uc.fg }}; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; display: flex; align-items: center; cursor: pointer; text-transform: var(--tt, uppercase);">{{ uc.label }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- sound -->
+      <div onClick="{{ toggleSound }}" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px); cursor: pointer;">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 11px; letter-spacing: 0.1em; color: var(--tx, #F2F2F2); font-weight: 700; text-transform: uppercase;">Rest timer sound</div>
+          <div style="font-size: 10px; color: var(--mut, #6B6B6B); letter-spacing: 0.03em;">Clicks for the final 5 seconds, tone at zero</div>
+        </div>
+        <div style="width: 52px; height: 32px; border-radius: 999px; background: {{ sndTrack }}; border: 1px solid {{ sndTrackBd }}; display: flex; align-items: center; padding: 0 3px; box-sizing: border-box; justify-content: {{ sndAlign }};">
+          <div style="width: 24px; height: 24px; border-radius: 999px; background: {{ sndKnob }};"></div>
+        </div>
+      </div>
+
+      <!-- default rest -->
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px);">
+        <div style="font-size: 11px; letter-spacing: 0.1em; color: var(--tx, #F2F2F2); font-weight: 700; text-transform: uppercase;">Default rest</div>
+        <div style="display: flex; gap: 6px;">
+          <sc-for list="{{ restChips }}" as="rc" hint-placeholder-count="3">
+            <div onClick="{{ rc.pick }}" style="height: 48px; padding: 0 13px; border-radius: var(--rs, 4px); background: {{ rc.bg }}; border: 1px solid {{ rc.bd }}; color: {{ rc.fg }}; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; display: flex; align-items: center; cursor: pointer;">{{ rc.label }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- weight increment -->
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px);">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 11px; letter-spacing: 0.1em; color: var(--tx, #F2F2F2); font-weight: 700; text-transform: uppercase;">Weight step · kg</div>
+          <div style="font-size: 10px; color: var(--mut, #6B6B6B); letter-spacing: 0.03em;">Default step for the ± buttons · hold a ± in the runner to change per-exercise</div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;">
+          <sc-for list="{{ incChips }}" as="ic" hint-placeholder-count="5">
+            <div onClick="{{ ic.pick }}" style="height: 48px; border-radius: var(--rs, 4px); background: {{ ic.bg }}; border: 1px solid {{ ic.bd }}; color: {{ ic.fg }}; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer;">{{ ic.label }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- account -->
+      <div style="display: flex; align-items: center; gap: 10px; padding: 20px 0 8px;">
+        <div style="font-size: 9px; letter-spacing: 0.2em; color: var(--mut, #6B6B6B); text-transform: uppercase; white-space: nowrap;">Account</div>
+        <div style="flex: 1; height: 1px; background: var(--bd, #1C1C1C);"></div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; background: var(--rowbg, transparent); border: 1px solid var(--rowbd, #1C1C1C); border-radius: var(--rs, 4px);">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="font-size: 12px; color: var(--sec, #9A9A9A); letter-spacing: 0.03em;">you@example.com</div>
+          <div style="font-size: 10px; color: var(--dim, #4A4A4A); letter-spacing: 0.06em; text-transform: uppercase;">Synced · magic-code sign-in</div>
+        </div>
+        <a href="Sign In.dc.html" style="height: 48px; padding: 0 14px; border-radius: var(--rs, 4px); background: var(--stepbg, transparent); border: 1px solid var(--stepbd, #333333); color: var(--mut, #6B6B6B); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; display: flex; align-items: center; cursor: pointer; text-decoration: none; text-transform: uppercase;">Sign out</a>
+      </div>
+
+      <div style="font-size: 10px; letter-spacing: 0.06em; color: var(--dim, #4A4A4A); text-align: center; padding-top: 14px; text-transform: uppercase;">Lift v1 · data syncs automatically when online</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:844},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;volt&quot;,&quot;ember&quot;],&quot;default&quot;:&quot;volt&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { theme: null, sound: true, rest: 90, inc: 2.5, unit: 'kg' };
+    this.rootEl = null;
+    this.rootRef = (el) => { this.rootEl = el; this.applyTheme(); };
+  }
+
+  themeName() { return this.state.theme || (this.props.theme != null ? this.props.theme : 'volt'); }
+
+  themes() {
+    return {
+      volt: {
+        '--bg': '#000000', '--bds': '#333333', '--bd': '#1C1C1C',
+        '--tx': '#F2F2F2', '--mut': '#6B6B6B', '--dim': '#4A4A4A', '--sec': '#9A9A9A',
+        '--acc': '#C8FF2E', '--onacc': '#000000',
+        '--f': "'JetBrains Mono', monospace", '--tt': 'uppercase',
+        '--rs': '4px', '--rl': '6px',
+        '--rowbg': 'transparent', '--rowbd': '#1C1C1C',
+        '--stepbg': 'transparent', '--stepbd': '#333333',
+        '--cardbg': '#0A0A0A', '--cardbd': '#333333'
+      },
+      ember: {
+        '--bg': '#17120E', '--bds': '#4A3D2C', '--bd': '#2E261D',
+        '--tx': '#F5EDE3', '--mut': '#A79684', '--dim': '#7D7060', '--sec': '#C9B79E',
+        '--acc': '#FF6A2B', '--onacc': '#1A0F05',
+        '--f': "'JetBrains Mono', monospace", '--tt': 'uppercase',
+        '--rs': '4px', '--rl': '6px',
+        '--rowbg': '#1E1710', '--rowbd': 'transparent',
+        '--stepbg': '#2E251A', '--stepbd': 'transparent',
+        '--cardbg': '#221B13', '--cardbd': 'transparent'
+      }
+    };
+  }
+
+  applyTheme() {
+    if (!this.rootEl) return;
+    var t = this.themes()[this.themeName()] || this.themes().volt;
+    for (var k in t) this.rootEl.style.setProperty(k, t[k]);
+  }
+
+  componentDidMount() { this.applyTheme(); }
+  componentDidUpdate() { this.applyTheme(); }
+
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    var chip = function (sel) {
+      return {
+        bg: sel ? 'var(--acc)' : 'var(--stepbg)',
+        bd: sel ? 'var(--acc)' : 'var(--stepbd)',
+        fg: sel ? 'var(--onacc)' : 'var(--sec)'
+      };
+    };
+
+    var themeChips = ['volt', 'ember'].map(function (t) {
+      var c = chip(self.themeName() === t);
+      return { label: t, bg: c.bg, bd: c.bd, fg: c.fg, pick: function () { self.setState({ theme: t }); } };
+    });
+    var restChips = [60, 90, 120].map(function (r) {
+      var c = chip(st.rest === r);
+      return { label: r + 's', bg: c.bg, bd: c.bd, fg: c.fg, pick: function () { self.setState({ rest: r }); } };
+    });
+    var incChips = [0.5, 1, 1.25, 2.5, 5].map(function (v) {
+      var c = chip(st.inc === v);
+      return { label: String(v), bg: c.bg, bd: c.bd, fg: c.fg, pick: function () { self.setState({ inc: v }); } };
+    });
+
+    var unitChips = ['kg', 'lb'].map(function (u) {
+      var c = chip(st.unit === u);
+      return { label: u, bg: c.bg, bd: c.bd, fg: c.fg, pick: function () { self.setState({ unit: u }); } };
+    });
+
+    return {
+      rootRef: this.rootRef,
+      themeChips: themeChips,
+      unitChips: unitChips,
+      restChips: restChips,
+      incChips: incChips,
+      toggleSound: function () { self.setState({ sound: !st.sound }); },
+      sndTrack: st.sound ? 'var(--acc)' : 'var(--stepbg)',
+      sndTrackBd: st.sound ? 'var(--acc)' : 'var(--stepbd)',
+      sndKnob: st.sound ? 'var(--onacc)' : 'var(--mut)',
+      sndAlign: st.sound ? 'flex-end' : 'flex-start'
+    };
+  }
+}
+</script>
+</body>
+</html>
