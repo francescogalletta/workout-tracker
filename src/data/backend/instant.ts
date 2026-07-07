@@ -26,41 +26,30 @@ const QUERY = {
 }
 
 /**
- * @param onFirstData Fired once, with the first remote snapshot, when the
- *   everything-query first resolves. `store.enableSync` uses it to run the
- *   sign-in merge-up against the freshly-loaded cloud data (the merge must wait
- *   for the real remote, not the empty cold-start snapshot).
+ * @param onFirstData Fired once, with the first remote snapshot AND this backend
+ *   instance, when the everything-query first resolves. `store.enableSync` uses
+ *   it to run the sign-in merge-up against the freshly-loaded cloud data (the
+ *   merge must wait for the real remote, not the empty cold-start snapshot).
+ *
+ *   The backend is passed as the SECOND argument on purpose: a warm InstantDB
+ *   cache delivers the first snapshot SYNCHRONOUSLY, from inside `subscribeQuery`
+ *   — which runs while the caller's `const inst = createInstantBackend(...)` is
+ *   still initializing. If the callback reached back for that `const` it would be
+ *   a temporal-dead-zone ReferenceError ("Cannot access 'inst'/'d' before
+ *   initialization" — the production crash this indirection fixes). Handing the
+ *   already-built `api` object in makes that read structurally impossible.
  * @param onError Fired when the subscription reports a query error or a
  *   background `transact` rejects. `store.enableSync` maps this to the 'error'
  *   sync status so the failure is visible instead of silent.
  */
 export function createInstantBackend(
   notify: () => void,
-  onFirstData?: (remote: Db) => void,
+  onFirstData?: (remote: Db, backend: Backend) => void,
   onError?: (err: unknown, kind: 'query' | 'transact') => void,
 ): Backend {
   // Optimistic snapshot: seeded from query results, advanced eagerly on write.
   let snap: Db = emptyDb()
   let firstDataDelivered = false
-
-  // subscribeQuery lives on the core db; tx/transact are on the React db.
-  idb._core.subscribeQuery(QUERY, (resp) => {
-    const r = resp as { data?: unknown; error?: unknown }
-    if (r.error) {
-      // A query error post-sign-in is meaningful (this backend only exists after
-      // sign-in): surface it as an observable sync error, keep rendering local.
-      console.warn('[instant] query error', r.error)
-      onError?.(r.error, 'query')
-      return
-    }
-    if (!r.data) return
-    snap = rowsToDb(r.data as InstantData)
-    notify()
-    if (!firstDataDelivered) {
-      firstDataDelivered = true
-      onFirstData?.(snap)
-    }
-  })
 
   function update(fn: (db: Db) => Db): void {
     const next = fn(snap)
@@ -85,7 +74,9 @@ export function createInstantBackend(
     })
   }
 
-  return {
+  // Build the backend object BEFORE subscribing, so a synchronous first snapshot
+  // has a fully-initialized instance to hand to `onFirstData` (see the doc above).
+  const api: Backend = {
     getDb: () => snap,
     update,
     reset() {
@@ -101,4 +92,26 @@ export function createInstantBackend(
       void idb.auth.signOut()
     },
   }
+
+  // subscribeQuery lives on the core db; tx/transact are on the React db. This may
+  // invoke the callback synchronously (warm cache) — `api` above is already ready.
+  idb._core.subscribeQuery(QUERY, (resp) => {
+    const r = resp as { data?: unknown; error?: unknown }
+    if (r.error) {
+      // A query error post-sign-in is meaningful (this backend only exists after
+      // sign-in): surface it as an observable sync error, keep rendering local.
+      console.warn('[instant] query error', r.error)
+      onError?.(r.error, 'query')
+      return
+    }
+    if (!r.data) return
+    snap = rowsToDb(r.data as InstantData)
+    notify()
+    if (!firstDataDelivered) {
+      firstDataDelivered = true
+      onFirstData?.(snap, api)
+    }
+  })
+
+  return api
 }

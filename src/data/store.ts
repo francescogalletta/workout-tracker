@@ -194,21 +194,28 @@ function beginConnecting(email: string | null): void {
   notify()
 }
 
-/** Turn an InstantDB error into a human-readable, non-technical line. */
-function humanSyncError(err: unknown, kind: 'query' | 'transact'): string {
+/**
+ * Extract the RAW error message so `Settings` can classify it (offline vs
+ * permissions vs a code crash) and present action-first copy. We keep the raw
+ * text — not a pre-wrapped human sentence — because the presentation layer
+ * (`classifySyncError`) needs the original to detect the case and to show a
+ * secondary "Details:" line for bug reports. Falls back to a kind-appropriate
+ * line when the error carries no message.
+ */
+function syncErrorDetail(err: unknown, kind: 'query' | 'transact'): string {
   const message =
     (err as { message?: unknown })?.message ??
     (err as { body?: { message?: unknown } })?.body?.message
-  const suffix = typeof message === 'string' && message ? ` (${message})` : ''
+  if (typeof message === 'string' && message.trim()) return message
   return kind === 'transact'
-    ? `A change couldn't be saved to the cloud${suffix}. It's still on this device — retry to sync it.`
-    : `Sync couldn't read your account${suffix}. Check your connection or permissions, then retry.`
+    ? "A change couldn't be saved to the cloud."
+    : "Sync couldn't read your account."
 }
 
 /** Wired to the instant backend's subscription/transact error callbacks. */
 function reportSyncError(err: unknown, kind: 'query' | 'transact'): void {
   clearConnectTimer()
-  lastSyncError = humanSyncError(err, kind)
+  lastSyncError = syncErrorDetail(err, kind)
   notify()
 }
 
@@ -420,7 +427,12 @@ export function enableSync(userId: string, email: string | null): void {
     .then(({ createInstantBackend }) => {
       const inst = createInstantBackend(
         notify,
-        (remote) => onFirstRemote(inst, remote, localSnapshot, email),
+        // Use the backend handed in by `createInstantBackend`, NOT the outer
+        // `inst` const: a warm InstantDB cache fires this synchronously, while
+        // `const inst = …` is still initializing, so reading `inst` here would be
+        // a temporal-dead-zone crash (the production "Cannot access 'd' before
+        // initialization" bug). The injected `backend` is always fully built.
+        (remote, backend) => onFirstRemote(backend, remote, localSnapshot, email),
         // Subscription/transact errors surface as the 'error' status.
         (err, kind) => reportSyncError(err, kind),
       )

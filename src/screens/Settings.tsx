@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { classifySyncError } from '../data/backend/syncError'
 import { updateSettings } from '../data/mutations'
 import { retrySync, signOut, type SyncStatus, useDb, useSyncStatus } from '../data/store'
 import type { AppSettings } from '../data/types'
@@ -81,6 +82,42 @@ function SettingChip({
     >
       {label}
     </button>
+  )
+}
+
+/**
+ * Sync-error card. Leads with what to DO in plain words (owner is non-technical),
+ * reassures that on-device data is safe, and keeps the raw message only as a small
+ * secondary "Details:" line for bug reports. All copy comes from the pure
+ * `classifySyncError` presenter (offline / permissions / code-crash / generic).
+ */
+function SyncErrorRow({ status }: { status: SyncStatus }) {
+  // Only claim "offline" when the browser explicitly says so. In non-browser
+  // (SSR/test) envs `navigator.onLine` is undefined — treat that as online.
+  const online = typeof navigator === 'undefined' || navigator.onLine !== false
+  const view = classifySyncError(status.detail, online)
+  return (
+    <Row column>
+      <div className="flex flex-col gap-[4px]">
+        {status.account && (
+          <div className="text-[12px] tracking-[0.03em] text-sec">{status.account}</div>
+        )}
+        <div className="text-[11px] font-bold tracking-[0.1em] text-tx uppercase">
+          {view.title}
+        </div>
+        <div className="text-[10px] tracking-[0.06em] text-dim uppercase">On this device</div>
+        <div className="text-[11px] leading-[1.7] tracking-[0.03em] text-sec">{view.body}</div>
+        {view.details && (
+          <div className="pt-[2px] text-[10px] leading-[1.6] tracking-[0.02em] text-mut">
+            Details: {view.details}
+          </div>
+        )}
+      </div>
+      <div className="flex gap-[6px]">
+        <QuietAction label="Retry sync" onClick={() => retrySync()} />
+        <QuietAction label="Sign out" tone="mut" onClick={() => signOut()} />
+      </div>
+    </Row>
   )
 }
 
@@ -281,30 +318,7 @@ export function Settings({ status: statusOverride }: { status?: SyncStatus } = {
             </Row>
           )}
 
-          {status.state === 'error' && (
-            <Row column>
-              <div className="flex flex-col gap-[3px]">
-                {status.account && (
-                  <div className="text-[12px] tracking-[0.03em] text-sec">{status.account}</div>
-                )}
-                <div className="text-[11px] font-bold tracking-[0.1em] text-tx uppercase">
-                  Sync problem
-                </div>
-                <div className="text-[10px] tracking-[0.06em] text-dim uppercase">
-                  On this device
-                </div>
-                {status.detail && (
-                  <div className="text-[10px] leading-[1.6] tracking-[0.03em] text-acc">
-                    {status.detail}
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-[6px]">
-                <QuietAction label="Retry sync" onClick={() => retrySync()} />
-                <QuietAction label="Sign out" tone="mut" onClick={() => signOut()} />
-              </div>
-            </Row>
-          )}
+          {status.state === 'error' && <SyncErrorRow status={status} />}
 
           {status.state === 'on' && (
             <Row column>
