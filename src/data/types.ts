@@ -67,6 +67,9 @@ export const DUR_MIN = 5
 /** Max routine name length (item 1). Enforced at the input + name setter. */
 export const MAX_ROUTINE_NAME_LEN = 40
 
+/** Max exercise name length — enforced at create + rename (Exercises library). */
+export const MAX_EXERCISE_NAME_LEN = 40
+
 export interface Routine {
   id: string
   name: string

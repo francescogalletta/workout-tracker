@@ -15,6 +15,7 @@ import type { Session } from './data/types'
 import { navigate, useRoute } from './router'
 import { Runner } from './runner/Runner'
 import { useThemeEffect } from './theme'
+import { Exercises } from './screens/Exercises'
 import { History } from './screens/History'
 import { Home } from './screens/Home'
 import { RoutineEditor } from './screens/RoutineEditor'
@@ -74,6 +75,9 @@ export function Shell({ authApi }: { authApi?: AuthApi } = {}) {
       break
     case 'routineEditor':
       screen = <RoutineEditor id={route.id} />
+      break
+    case 'exercises':
+      screen = <Exercises />
       break
     case 'run':
       screen = <RunScreen />

@@ -8,11 +8,23 @@ Runner prototype reference is at `design/prototypes/Runner Prototype.dc.html`
 ## Status
 
 **All screens implemented** (SPEC §9.1–9.7): Home (rotation suggestion,
-resume-or-discard), Routines (rotation reorder/toggles), Routine Editor, Workout
-Runner (engine-driven prescriptions, rest takeover with audio cues, warm-ups,
-swap/add, cardio), History (Log + Insights · Plan with targets and muscle
-balance), Settings (Volt/Ember themes), Sign In. End-to-end integration flow
+resume-or-discard), Routines (rotation reorder/toggles), Routine Editor,
+Exercises library (search/filter, create/rename/delete custom exercises),
+Workout Runner (engine-driven prescriptions, rest takeover with audio cues,
+warm-ups, swap/add, cardio), History (Log + Insights · Plan with targets and
+muscle balance), Settings (Volt/Ember themes), Sign In. A persistent top nav
+(Workout · Routines · Exercises · History · Settings) stays visible on every
+screen except Sign In — including mid-workout. End-to-end integration flow
 covered by the test suite.
+
+**Exercise types.** Every exercise is logged one of three ways, chosen once at
+creation and never per-routine: `weight` (kg × reps @ RIR), `reps` (bodyweight —
+reps @ RIR, no load), or `time` (a timed hold — a start/pause/overtime timer
+that logs seconds held). RIR is picked on a shared color-coded sliding scale
+(hard-red → easy-accent) in both the runner and the editor. Rest has a
+session-level default surfaced as a runner chip (per-exercise overrides still
+win, saved default untouched). Deleting an exercise cascades to routine entries
+but preserves logged history (each set carries its own name snapshot).
 
 **Auth is offline-first, sign-in is opt-in sync — NOT a gate.** The app boots
 straight to Home on the local (localStorage) backend and is fully functional
@@ -34,9 +46,10 @@ fodder).
 instantdb.com in `.env.local` (`VITE_INSTANT_APP_ID`) to activate; a real
 magic-code round-trip can't be exercised in tests, so the sign-in merge core
 (`mergeDb`) is unit-tested and the async wiring is driven by the auth callback.
-Exercise DB seeding from free-exercise-db (SPEC §6), lb display
-conversion (`settings.unit` persists but everything renders kg), ad-hoc
-runner exercises default to 90 s rest instead of the Settings default.
+A broader exercise
+catalog import from free-exercise-db (SPEC §6) is still pending — the app ships a
+curated starter set plus user-created custom exercises — and lb display
+conversion is not wired (`settings.unit` persists but everything renders kg).
 
 ## License
 
