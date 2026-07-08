@@ -17,10 +17,10 @@ function activeLabel(html: string): string | null {
 }
 
 describe('TopNav', () => {
-  it('renders the wordmark and all four destinations', () => {
+  it('renders the wordmark and all five destinations', () => {
     const html = renderToString(<TopNav route="home" />)
     expect(html).toContain('Lift')
-    for (const label of ['Workout', 'Routines', 'History', 'Settings']) {
+    for (const label of ['Workout', 'Routines', 'Exercises', 'History', 'Settings']) {
       expect(html).toContain(label)
     }
   })
@@ -37,7 +37,8 @@ describe('TopNav', () => {
     expect(activeLabel(renderToString(<TopNav route="routineEditor" />))).toBe('Routines')
   })
 
-  it('maps history and settings to their own links', () => {
+  it('maps exercises, history and settings to their own links', () => {
+    expect(activeLabel(renderToString(<TopNav route="exercises" />))).toBe('Exercises')
     expect(activeLabel(renderToString(<TopNav route="history" />))).toBe('History')
     expect(activeLabel(renderToString(<TopNav route="settings" />))).toBe('Settings')
   })
@@ -47,6 +48,7 @@ describe('activeNavKey', () => {
   it('aliases routineEditor onto Routines and run onto Workout; nulls sign in', () => {
     expect(activeNavKey('routineEditor')).toBe('routines')
     expect(activeNavKey('routines')).toBe('routines')
+    expect(activeNavKey('exercises')).toBe('exercises')
     expect(activeNavKey('run')).toBe('home')
     expect(activeNavKey('signin')).toBeNull()
   })
@@ -55,7 +57,15 @@ describe('activeNavKey', () => {
 describe('showTopNav', () => {
   it('hides the nav only on Sign In (kept visible during a workout)', () => {
     const hidden: Route['name'][] = ['signin']
-    const shown: Route['name'][] = ['home', 'run', 'routines', 'routineEditor', 'history', 'settings']
+    const shown: Route['name'][] = [
+      'home',
+      'run',
+      'routines',
+      'routineEditor',
+      'exercises',
+      'history',
+      'settings',
+    ]
     for (const r of hidden) expect(showTopNav(r)).toBe(false)
     for (const r of shown) expect(showTopNav(r)).toBe(true)
   })

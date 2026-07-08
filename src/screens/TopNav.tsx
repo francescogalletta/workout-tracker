@@ -13,11 +13,12 @@ import { navigate, type Route } from '../router'
  */
 
 /** Which nav destination a route highlights (null → nav is not shown at all). */
-type NavKey = 'home' | 'routines' | 'history' | 'settings'
+type NavKey = 'home' | 'routines' | 'exercises' | 'history' | 'settings'
 
 const LINKS: ReadonlyArray<readonly [label: string, path: string, key: NavKey]> = [
   ['Workout', '/', 'home'],
   ['Routines', '/routines', 'routines'],
+  ['Exercises', '/exercises', 'exercises'],
   ['History', '/history', 'history'],
   ['Settings', '/settings', 'settings'],
 ] as const
@@ -31,6 +32,8 @@ export function activeNavKey(route: Route['name']): NavKey | null {
     case 'routines':
     case 'routineEditor':
       return 'routines'
+    case 'exercises':
+      return 'exercises'
     case 'history':
       return 'history'
     case 'settings':

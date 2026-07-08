@@ -6,6 +6,7 @@ import { useSyncExternalStore } from 'react'
  *   #/signin      Sign In
  *   #/routines    Routines list
  *   #/routines/:id  Routine editor
+ *   #/exercises   Exercises library
  *   #/run         Workout Runner
  *   #/history     History
  *   #/settings    Settings
@@ -17,6 +18,7 @@ export type Route =
   | { name: 'signin' }
   | { name: 'routines' }
   | { name: 'routineEditor'; id: string }
+  | { name: 'exercises' }
   | { name: 'run' }
   | { name: 'history' }
   | { name: 'settings' }
@@ -28,6 +30,7 @@ export function parseRoute(hash: string): Route {
   if (path === '/routines') return { name: 'routines' }
   const editor = path.match(/^\/routines\/([^/]+)$/)
   if (editor) return { name: 'routineEditor', id: decodeURIComponent(editor[1]) }
+  if (path === '/exercises') return { name: 'exercises' }
   if (path === '/run') return { name: 'run' }
   if (path === '/history') return { name: 'history' }
   if (path === '/settings') return { name: 'settings' }

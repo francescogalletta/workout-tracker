@@ -2,6 +2,7 @@ import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ensureCatalog, seedDemoData } from '../data/seed'
 import { getDb, resetDb } from '../data/store'
+import { Exercises } from './Exercises'
 import { Home } from './Home'
 import { Routines } from './Routines'
 
@@ -63,5 +64,20 @@ describe('Routines', () => {
     expect(count).toBe(1)
     // Sanity: the store really has non-rotation routines to render.
     expect(getDb().routines.some((r) => r.cycleOrder === null)).toBe(true)
+  })
+})
+
+describe('Exercises', () => {
+  it('lists the catalog with a create affordance and per-row actions', () => {
+    ensureCatalog()
+    const html = renderToString(<Exercises />)
+    expect(html).toContain('Exercises')
+    expect(html).toContain('Search exercises')
+    expect(html).toContain('+ Create custom exercise')
+    // Row management controls are present (aria-labels on the icon buttons).
+    expect(html).toContain('aria-label="Rename"')
+    expect(html).toContain('aria-label="Delete"')
+    // A known seed exercise renders.
+    expect(html.toLowerCase()).toContain('bench press')
   })
 })

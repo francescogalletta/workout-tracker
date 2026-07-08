@@ -7,6 +7,7 @@ describe('parseRoute', () => {
     expect(parseRoute('#/signin')).toEqual({ name: 'signin' })
     expect(parseRoute('#/routines')).toEqual({ name: 'routines' })
     expect(parseRoute('#/routines/r-push-a')).toEqual({ name: 'routineEditor', id: 'r-push-a' })
+    expect(parseRoute('#/exercises')).toEqual({ name: 'exercises' })
     expect(parseRoute('#/run')).toEqual({ name: 'run' })
     expect(parseRoute('#/history')).toEqual({ name: 'history' })
     expect(parseRoute('#/settings')).toEqual({ name: 'settings' })

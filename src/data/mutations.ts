@@ -1,7 +1,7 @@
 import { activeSession } from './queries'
 import { getDb, update } from './store'
 import type { AppSettings, Exercise, ExerciseType, Routine, Session, SetLog } from './types'
-import { newId } from './types'
+import { MAX_EXERCISE_NAME_LEN, newId } from './types'
 
 /**
  * Small write helpers over the store. All are optimistic + synchronous
@@ -98,4 +98,32 @@ export function createExercise(input: {
   }
   update((db) => ({ ...db, exercises: [...db.exercises, ex] }))
   return ex
+}
+
+/**
+ * Rename an exercise in the library. The type is deliberately NOT editable
+ * (chosen once at creation, CHANGE_REQUEST §1.1). Routine items resolve the
+ * name live from the catalog, so they pick this up; past setLogs keep their own
+ * `exerciseName` snapshot, so history reads as it did when performed.
+ */
+export function renameExercise(id: string, name: string): void {
+  const trimmed = name.trim().slice(0, MAX_EXERCISE_NAME_LEN)
+  if (!trimmed) return
+  update((db) => ({
+    ...db,
+    exercises: db.exercises.map((e) => (e.id === id ? { ...e, name: trimmed } : e)),
+  }))
+}
+
+/**
+ * Delete an exercise from the library and cascade-remove any routine items that
+ * referenced it (warn-and-cascade decision). Logged history is preserved — each
+ * setLog carries its own `exerciseName`, so past workouts are unaffected.
+ */
+export function deleteExercise(id: string): void {
+  update((db) => ({
+    ...db,
+    exercises: db.exercises.filter((e) => e.id !== id),
+    routineItems: db.routineItems.filter((it) => it.exerciseId !== id),
+  }))
 }

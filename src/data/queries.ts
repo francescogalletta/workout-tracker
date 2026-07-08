@@ -23,6 +23,18 @@ export function itemsForRoutine(db: Db, routineId: string): RoutineItem[] {
     .sort((a, b) => a.order - b.order)
 }
 
+/**
+ * Distinct non-archived routines that reference an exercise in one of their
+ * items. Drives the "used in N routines" warning before deleting an exercise
+ * (those items are removed with it; logged history keeps its own name snapshot).
+ */
+export function routinesUsingExercise(db: Db, exerciseId: string): Routine[] {
+  const ids = new Set(
+    db.routineItems.filter((it) => it.exerciseId === exerciseId).map((it) => it.routineId),
+  )
+  return db.routines.filter((r) => !r.archived && ids.has(r.id))
+}
+
 /** Routines in the rotation, by cycle position. */
 export function rotationRoutines(db: Db): Routine[] {
   return db.routines

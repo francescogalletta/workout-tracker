@@ -198,7 +198,7 @@ function exampleSet(type: ExerciseType): string {
   return `Set 1 · ${fmtDur(45)}`
 }
 
-function CreateExercise({
+export function CreateExercise({
   initialName,
   onCreate,
   onCancel,
