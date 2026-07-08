@@ -5,6 +5,7 @@ import type { Session } from '../data/types'
 import { newId } from '../data/types'
 import { ensureAudio, restClick, restDone } from '../lib/audio'
 import { fmtClock, fmtDur, fmtMetricLine, fmtW } from '../lib/format'
+import { useTilt } from '../lib/useTilt'
 import { useWakeLock } from '../lib/useWakeLock'
 import { ActiveSetCard } from './components/ActiveSetCard'
 import { ExercisePicker, filterDb, type PickerFilter } from './components/ExercisePicker'
@@ -95,6 +96,9 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
   const curEx: SessionExercise | undefined = state.exercises[ptr.e]
 
   useWakeLock(!state.finished)
+  // Subtle device-tilt parallax on the active set card (echoes the Home
+  // wordmark's motion feel). Reads `activeCardEl`, remounted per active set.
+  useTilt(activeCardEl)
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 250)

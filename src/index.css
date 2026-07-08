@@ -35,10 +35,11 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  /* Height of the sticky TopNav: its pt-[max(var(--safe-top),8px)] + 48px row.
-     Keep in sync with src/screens/TopNav.tsx. Screens that must fill exactly
-     the remaining viewport (Home) subtract this instead of using 100dvh. */
-  --nav-h: calc(max(var(--safe-top), 8px) + 48px);
+  /* Height of the sticky TopNav: its pt-[max(var(--safe-top),8px)] + a 48px
+     title bar + a 44px section-tab bar. Keep in sync with
+     src/screens/TopNav.tsx. Screens that must fill exactly the remaining
+     viewport (Home) subtract this instead of using 100dvh. */
+  --nav-h: calc(max(var(--safe-top), 8px) + 48px + 44px);
 }
 
 /*
