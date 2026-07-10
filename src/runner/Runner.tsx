@@ -652,10 +652,7 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
       {restSheetOpen && (
         <RestSessionSheet
           current={sessionRestValue}
-          onPick={(sec) => {
-            dispatch({ type: 'setSessionRest', sec })
-            setRestSheetOpen(false)
-          }}
+          onPick={(sec) => dispatch({ type: 'setSessionRest', sec })}
           onClose={() => setRestSheetOpen(false)}
         />
       )}

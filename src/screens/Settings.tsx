@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { RestSlider } from '../components/RestSlider'
 import { Toggle } from '../components/Toggle'
 import { classifySyncError } from '../data/backend/syncError'
 import { updateSettings } from '../data/mutations'
@@ -208,19 +209,9 @@ export function Settings({ status: statusOverride }: { status?: SyncStatus } = {
           </button>
 
           {/* Default rest */}
-          <Row>
-            <RowLabel title="Default rest" />
-            <div className="flex gap-[6px]">
-              {[60, 90, 120].map((r) => (
-                <SettingChip
-                  key={r}
-                  label={`${r}s`}
-                  numeric
-                  selected={s.defaultRestSec === r}
-                  onClick={() => set({ defaultRestSec: r })}
-                />
-              ))}
-            </div>
+          <Row column>
+            <RowLabel title="Default rest" note="Used when a routine doesn't set its own" />
+            <RestSlider sec={s.defaultRestSec} onCommit={(sec) => set({ defaultRestSec: sec })} />
           </Row>
 
           {/* Weight step */}

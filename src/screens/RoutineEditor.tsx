@@ -21,6 +21,7 @@ import {
 } from '../runner/components/ExercisePicker'
 import { toPickerItem } from '../runner/fromStore'
 import { ConfirmSheet } from '../components/ConfirmSheet'
+import { RestSlider } from '../components/RestSlider'
 import { Toggle } from '../components/Toggle'
 import { RirScale } from '../runner/components/RirScale'
 import { TypeBadge } from '../runner/components/TypeBadge'
@@ -260,8 +261,6 @@ function StepPad({ label, onClick }: { label: string; onClick: () => void }) {
   )
 }
 
-const REST_CHIPS: Array<number | null> = [null, 60, 90, 120, 180]
-
 // ── Expanded item card ─────────────────────────────────────────────────────
 
 function ExpandedItem({
@@ -354,30 +353,24 @@ function ExpandedItem({
 
       <div className="flex items-center justify-between gap-3">
         <div className="text-[10px] tracking-[0.16em] text-mut uppercase">Rest</div>
-        {!restOpen && (
-          <button
-            onClick={onToggleRest}
-            className="box-border flex min-w-[76px] cursor-pointer flex-col items-center gap-[2px] rounded-rs border border-stepbd bg-stepbg px-[14px] py-2"
-          >
-            <div className="text-[18px] font-extrabold text-tx tabular-nums">{effectiveRest}s</div>
-            {item.restSec === null && (
-              <div className="text-[8px] tracking-[0.12em] text-mut uppercase">default</div>
-            )}
-          </button>
-        )}
+        <button
+          onClick={onToggleRest}
+          className="box-border flex min-w-[76px] cursor-pointer flex-col items-center gap-[2px] rounded-rs border border-stepbd bg-stepbg px-[14px] py-2"
+        >
+          <div className="text-[18px] font-extrabold text-tx tabular-nums">{effectiveRest}s</div>
+          {item.restSec === null && (
+            <div className="text-[8px] tracking-[0.12em] text-mut uppercase">default</div>
+          )}
+        </button>
       </div>
       {restOpen && (
-        <div className="flex flex-wrap gap-[6px]">
-          {REST_CHIPS.map((r) => (
-            <ChoiceChip
-              key={r === null ? 'default' : r}
-              label={r === null ? `Default · ${defaultRest}s` : `${r}s`}
-              selected={item.restSec === r}
-              onClick={() => onRest(r)}
-              h={44}
-            />
-          ))}
-        </div>
+        <RestSlider
+          sec={effectiveRest}
+          isDefault={item.restSec === null}
+          defaultSec={defaultRest}
+          onUseDefault={() => onRest(null)}
+          onCommit={(sec) => onRest(sec)}
+        />
       )}
     </div>
   )
@@ -439,19 +432,11 @@ export function RoutineEditor({ id }: { id: string }) {
 
         {/* default rest */}
         <div className="mb-4 flex flex-col gap-2 rounded-rs border border-rowbd bg-rowbg p-[12px_14px]">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[11px] tracking-[0.1em] text-mut uppercase">Default rest</div>
-            <div className="flex gap-[6px]">
-              {[60, 90, 120].map((r) => (
-                <ChoiceChip
-                  key={r}
-                  label={`${r}s`}
-                  selected={routine.defaultRestSec === r}
-                  onClick={() => update((d) => setDefaultRest(d, id, r))}
-                />
-              ))}
-            </div>
-          </div>
+          <div className="text-[11px] tracking-[0.1em] text-mut uppercase">Default rest</div>
+          <RestSlider
+            sec={routine.defaultRestSec}
+            onCommit={(sec) => update((d) => setDefaultRest(d, id, sec))}
+          />
           <div className="text-[10px] tracking-[0.03em] text-dim">
             Sets every exercise's rest — per-exercise tweaks reset
           </div>
@@ -505,11 +490,8 @@ export function RoutineEditor({ id }: { id: string }) {
                   onStepReps={(delta) => update((d) => stepReps(d, item.id, delta))}
                   onStepDur={(delta) => update((d) => stepDur(d, item.id, delta))}
                   onRir={(v) => update((d) => setItemRir(d, item.id, v))}
-                  onRest={(v) => {
-                    update((d) => setItemRest(d, item.id, v))
-                    setRestOpen(null)
-                  }}
-                  onToggleRest={() => setRestOpen(item.id)}
+                  onRest={(v) => update((d) => setItemRest(d, item.id, v))}
+                  onToggleRest={() => setRestOpen(restOpen === item.id ? null : item.id)}
                 />
               )
             }

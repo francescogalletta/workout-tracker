@@ -1,4 +1,5 @@
 import { ConfirmSheet } from '../../components/ConfirmSheet'
+import { RestSlider } from '../../components/RestSlider'
 import { fmtStep } from '../../lib/format'
 import type { SessionState } from '../types'
 import { AccentButton, OutlineButton, Sheet } from './ui'
@@ -167,8 +168,6 @@ export function SwapConfirmSheet({
   )
 }
 
-const REST_SESSION_OPTIONS = [60, 90, 120, 150]
-
 /** Session-scoped rest default picker (CHANGE_REQUEST §3.4). */
 export function RestSessionSheet({
   current,
@@ -185,23 +184,12 @@ export function RestSessionSheet({
         <div className="pb-[6px] text-[11px] tracking-[0.16em] text-mut uppercase">
           Rest · this session
         </div>
-        <div className="grid grid-cols-4 gap-2">
-          {REST_SESSION_OPTIONS.map((v) => (
-            <button
-              key={v}
-              onClick={() => onPick(v)}
-              className={`flex h-[52px] cursor-pointer items-center justify-center rounded-rs border font-mono text-[16px] font-bold tabular-nums ${
-                current === v ? 'border-acc bg-acc text-onacc' : 'border-stepbd bg-stepbg text-sec'
-              }`}
-            >
-              {v}s
-            </button>
-          ))}
-        </div>
-        <div className="pt-[10px] text-center text-[10px] tracking-[0.06em] text-dim uppercase">
+        <RestSlider sec={current} onCommit={onPick} />
+        <div className="pt-[6px] text-center text-[10px] tracking-[0.06em] text-dim uppercase">
           Applies to all remaining rests today. Exercises with their own rest keep it. Your saved
           default stays unchanged.
         </div>
+        <AccentButton label="Done" onClick={onClose} className="mt-1" />
       </div>
     </Sheet>
   )
