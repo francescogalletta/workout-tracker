@@ -8,7 +8,7 @@ import { useSyncExternalStore } from 'react'
  *   #/routines/:id  Routine editor
  *   #/exercises   Exercises library
  *   #/run         Workout Runner
- *   #/history     History
+ *   #/insights    Insights (history + plan; #/history parses here for old links)
  *   #/settings    Settings
  * Unknown hashes fall back to Home.
  */
@@ -20,7 +20,7 @@ export type Route =
   | { name: 'routineEditor'; id: string }
   | { name: 'exercises' }
   | { name: 'run' }
-  | { name: 'history' }
+  | { name: 'insights' }
   | { name: 'settings' }
 
 export function parseRoute(hash: string): Route {
@@ -32,7 +32,9 @@ export function parseRoute(hash: string): Route {
   if (editor) return { name: 'routineEditor', id: decodeURIComponent(editor[1]) }
   if (path === '/exercises') return { name: 'exercises' }
   if (path === '/run') return { name: 'run' }
-  if (path === '/history') return { name: 'history' }
+  // '/history' is the pre-rename hash — kept so bookmarks and installed PWAs
+  // with a saved state keep landing on the right screen.
+  if (path === '/insights' || path === '/history') return { name: 'insights' }
   if (path === '/settings') return { name: 'settings' }
   return { name: 'home' }
 }

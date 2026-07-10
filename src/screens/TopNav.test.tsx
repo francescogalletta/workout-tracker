@@ -20,7 +20,7 @@ describe('TopNav', () => {
   it('renders the wordmark and all five destinations', () => {
     const html = renderToString(<TopNav route="home" />)
     expect(html).toContain('Lift')
-    for (const label of ['Workout', 'Routines', 'Exercises', 'History', 'Settings']) {
+    for (const label of ['Workout', 'Routines', 'Exercises', 'Insights', 'Settings']) {
       expect(html).toContain(label)
     }
   })
@@ -37,9 +37,9 @@ describe('TopNav', () => {
     expect(activeLabel(renderToString(<TopNav route="routineEditor" />))).toBe('Routines')
   })
 
-  it('maps exercises, history and settings to their own links', () => {
+  it('maps exercises, insights and settings to their own links', () => {
     expect(activeLabel(renderToString(<TopNav route="exercises" />))).toBe('Exercises')
-    expect(activeLabel(renderToString(<TopNav route="history" />))).toBe('History')
+    expect(activeLabel(renderToString(<TopNav route="insights" />))).toBe('Insights')
     expect(activeLabel(renderToString(<TopNav route="settings" />))).toBe('Settings')
   })
 })
@@ -63,7 +63,7 @@ describe('showTopNav', () => {
       'routines',
       'routineEditor',
       'exercises',
-      'history',
+      'insights',
       'settings',
     ]
     for (const r of hidden) expect(showTopNav(r)).toBe(false)
