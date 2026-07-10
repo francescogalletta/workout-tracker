@@ -4,7 +4,7 @@ import type { Db, Exercise, Session, SetLog } from '../data/types'
 import { detectPlateau, prescribe, type WorkingHistory } from '../engine/reco'
 import { warmupSets } from '../engine/warmup'
 import { fmtDur, fmtW } from '../lib/format'
-import { TYPE_DEFAULTS } from '../data/types'
+import { TYPE_DEFAULTS, effectiveRIR } from '../data/types'
 import { createSession, nextUnlogged, type SessionSeed } from './session'
 import type { DbExercise, SessionExercise, SessionState, SetEntry } from './types'
 
@@ -117,11 +117,13 @@ export function seedsForRoutine(
       return
     }
 
+    const rir = effectiveRIR(item, routine)
+
     // Bodyweight reps: reps @ RIR, no weight, no engine (weight history is 0kg).
     if (type === 'reps') {
       const sets: SessionSeed['sets'] = []
       for (let s = 0; s < item.sets; s++) {
-        sets.push({ weight: null, reps: item.repsPerSet, rir: item.targetRIR })
+        sets.push({ weight: null, reps: item.repsPerSet, rir })
       }
       seeds.push({
         exercise: {
@@ -130,9 +132,9 @@ export function seedsForRoutine(
           name: ex.name,
           kind: 'strength',
           type,
-          scheme: `${item.sets}×${item.repsPerSet} @ RIR ${item.targetRIR}`,
+          scheme: `${item.sets}×${item.repsPerSet} @ RIR ${rir}`,
           targetReps: item.repsPerSet,
-          targetRir: item.targetRIR,
+          targetRir: rir,
           restSec: item.restSec,
           muscle: ex.primaryMuscle,
           group: ex.muscleGroup,
@@ -147,8 +149,8 @@ export function seedsForRoutine(
     }
 
     const history = workingHistory(db, ex.id, excludeSessionId)
-    const presc = prescribe(history, item.repsPerSet, item.targetRIR, inc)
-    const plateau = detectPlateau(history, item.repsPerSet, item.targetRIR, inc)
+    const presc = prescribe(history, item.repsPerSet, rir, inc)
+    const plateau = detectPlateau(history, item.repsPerSet, rir, inc)
     const targetRow = activeTargetFor(db, ex.id, now)
 
     const sets: SessionSeed['sets'] = []
@@ -158,7 +160,7 @@ export function seedsForRoutine(
       }
     }
     for (let s = 0; s < item.sets; s++) {
-      sets.push({ weight: presc.weightKg, reps: item.repsPerSet, rir: item.targetRIR })
+      sets.push({ weight: presc.weightKg, reps: item.repsPerSet, rir })
     }
 
     seeds.push({
@@ -168,9 +170,9 @@ export function seedsForRoutine(
         name: ex.name,
         kind: 'strength',
         type,
-        scheme: `${item.sets}×${item.repsPerSet} @ RIR ${item.targetRIR}`,
+        scheme: `${item.sets}×${item.repsPerSet} @ RIR ${rir}`,
         targetReps: item.repsPerSet,
-        targetRir: item.targetRIR,
+        targetRir: rir,
         restSec: item.restSec,
         muscle: ex.primaryMuscle,
         group: ex.muscleGroup,

@@ -7,8 +7,10 @@ import {
   DUR_STEP,
   MAX_ROUTINE_NAME_LEN,
   TYPE_DEFAULTS,
+  effectiveRIR,
   exerciseType,
   newId,
+  routineDefaultRIR,
 } from '../data/types'
 import { fmtDur } from '../lib/format'
 import { navigate } from '../router'
@@ -46,10 +48,29 @@ export function setRoutineName(db: Db, routineId: string, name: string): Db {
   }
 }
 
+/**
+ * Set the routine default rest AND reset every item's override to null, so a
+ * new default really applies to the whole routine (owner decision — before,
+ * items with explicit rests silently kept them).
+ */
 export function setDefaultRest(db: Db, routineId: string, sec: number): Db {
   return {
     ...db,
     routines: db.routines.map((r) => (r.id === routineId ? { ...r, defaultRestSec: sec } : r)),
+    routineItems: db.routineItems.map((it) =>
+      it.routineId === routineId ? { ...it, restSec: null } : it,
+    ),
+  }
+}
+
+/** Same override-resetting semantics as `setDefaultRest`, for the RIR target. */
+export function setDefaultTargetRIR(db: Db, routineId: string, rir: number): Db {
+  return {
+    ...db,
+    routines: db.routines.map((r) => (r.id === routineId ? { ...r, defaultTargetRIR: rir } : r)),
+    routineItems: db.routineItems.map((it) =>
+      it.routineId === routineId ? { ...it, targetRIR: null } : it,
+    ),
   }
 }
 
@@ -78,7 +99,8 @@ export function stepReps(db: Db, itemId: string, delta: number): Db {
   }
 }
 
-export function setItemRir(db: Db, itemId: string, rir: number): Db {
+/** Override one item's RIR target; `null` reverts to the routine default. */
+export function setItemRir(db: Db, itemId: string, rir: number | null): Db {
   return {
     ...db,
     routineItems: db.routineItems.map((it) => (it.id === itemId ? { ...it, targetRIR: rir } : it)),
@@ -135,9 +157,9 @@ export function removeItem(db: Db, routineId: string, itemId: string): Db {
 }
 
 /**
- * Append an item with type-aware defaults (CHANGE_REQUEST §1.3): weight
- * 3×10 @ RIR 2, reps (bodyweight) 3×12 @ RIR 2, time 3×30s (no RIR). Rest
- * always starts at the routine default (null override).
+ * Append an item with type-aware defaults (CHANGE_REQUEST §1.3): weight 3×10,
+ * reps (bodyweight) 3×12, time 3×30s. Rest and RIR both start on the routine
+ * defaults (null overrides).
  */
 export function addItem(db: Db, routineId: string, exerciseId: string, id: string): Db {
   const order = itemsForRoutine(db, routineId).length
@@ -149,7 +171,7 @@ export function addItem(db: Db, routineId: string, exerciseId: string, id: strin
     order,
     sets: TYPE_DEFAULTS[type].sets,
     repsPerSet: type === 'time' ? 0 : TYPE_DEFAULTS[type].reps,
-    targetRIR: type === 'time' ? 0 : TYPE_DEFAULTS[type].rir,
+    targetRIR: null,
     restSec: null,
     ...(type === 'time' ? { durSec: TYPE_DEFAULTS.time.durSec } : {}),
   }
@@ -189,12 +211,16 @@ export function deleteRoutine(db: Db, routineId: string): Db {
   }
 }
 
-export function itemSummary(item: RoutineItem, defaultRest: number, type: ExerciseType): string {
-  const rest = item.restSec ?? defaultRest
+export function itemSummary(
+  item: RoutineItem,
+  routine: { defaultRestSec: number; defaultTargetRIR?: number },
+  type: ExerciseType,
+): string {
+  const rest = item.restSec ?? routine.defaultRestSec
   if (type === 'time') {
     return `${item.sets} × ${fmtDur(item.durSec ?? TYPE_DEFAULTS.time.durSec)} · rest ${rest}s`
   }
-  return `${item.sets}×${item.repsPerSet} @ RIR ${item.targetRIR} · rest ${rest}s`
+  return `${item.sets}×${item.repsPerSet} @ RIR ${effectiveRIR(item, routine)} · rest ${rest}s`
 }
 
 // ── Small presentational bits ──────────────────────────────────────────────
@@ -243,6 +269,7 @@ function ExpandedItem({
   name,
   type,
   defaultRest,
+  defaultRir,
   restOpen,
   onCollapse,
   onRemove,
@@ -257,13 +284,14 @@ function ExpandedItem({
   name: string
   type: ExerciseType
   defaultRest: number
+  defaultRir: number
   restOpen: boolean
   onCollapse: () => void
   onRemove: () => void
   onStepSets: (d: number) => void
   onStepReps: (d: number) => void
   onStepDur: (d: number) => void
-  onRir: (v: number) => void
+  onRir: (v: number | null) => void
   onRest: (v: number | null) => void
   onToggleRest: () => void
 }) {
@@ -312,9 +340,15 @@ function ExpandedItem({
       </div>
 
       {!isTime && (
-        <div className="flex flex-col gap-[6px]">
+        <div className="flex flex-col gap-[8px]">
           <div className="text-[10px] tracking-[0.16em] text-mut uppercase">Target RIR</div>
-          <RirScale value={item.targetRIR} onSelect={onRir} height={48} />
+          <RirScale value={item.targetRIR ?? defaultRir} onSelect={onRir} height={48} />
+          <ChoiceChip
+            label={`Default · RIR ${defaultRir}`}
+            selected={item.targetRIR === null}
+            onClick={() => onRir(null)}
+            h={36}
+          />
         </div>
       )}
 
@@ -404,17 +438,35 @@ export function RoutineEditor({ id }: { id: string }) {
         <div className="pb-4 text-[11px] tracking-[0.06em] text-dim uppercase">{subtitle}</div>
 
         {/* default rest */}
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-rs border border-rowbd bg-rowbg p-[12px_14px]">
-          <div className="text-[11px] tracking-[0.1em] text-mut uppercase">Default rest</div>
-          <div className="flex gap-[6px]">
-            {[60, 90, 120].map((r) => (
-              <ChoiceChip
-                key={r}
-                label={`${r}s`}
-                selected={routine.defaultRestSec === r}
-                onClick={() => update((d) => setDefaultRest(d, id, r))}
-              />
-            ))}
+        <div className="mb-4 flex flex-col gap-2 rounded-rs border border-rowbd bg-rowbg p-[12px_14px]">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[11px] tracking-[0.1em] text-mut uppercase">Default rest</div>
+            <div className="flex gap-[6px]">
+              {[60, 90, 120].map((r) => (
+                <ChoiceChip
+                  key={r}
+                  label={`${r}s`}
+                  selected={routine.defaultRestSec === r}
+                  onClick={() => update((d) => setDefaultRest(d, id, r))}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="text-[10px] tracking-[0.03em] text-dim">
+            Sets every exercise's rest — per-exercise tweaks reset
+          </div>
+        </div>
+
+        {/* default RIR target */}
+        <div className="mb-4 flex flex-col gap-2 rounded-rs border border-rowbd bg-rowbg p-[12px_14px]">
+          <div className="text-[11px] tracking-[0.1em] text-mut uppercase">Default RIR target</div>
+          <RirScale
+            value={routineDefaultRIR(routine)}
+            onSelect={(v) => update((d) => setDefaultTargetRIR(d, id, v))}
+            height={44}
+          />
+          <div className="text-[10px] tracking-[0.03em] text-dim">
+            Sets every exercise's target — per-exercise tweaks reset
           </div>
         </div>
 
@@ -423,14 +475,7 @@ export function RoutineEditor({ id }: { id: string }) {
           onClick={() => update((d) => setWarmup(d, id, !routine.warmup))}
           className="mb-4 flex cursor-pointer items-center justify-between gap-3 rounded-rs border border-rowbd bg-rowbg p-[12px_14px]"
         >
-          <div className="flex flex-col gap-[3px]">
-            <div className="text-[11px] font-bold tracking-[0.1em] text-tx uppercase">
-              Warm-up section
-            </div>
-            <div className="text-[10px] tracking-[0.03em] text-mut">
-              Opens the session · 50% × 8, then 70% × 5 of the first exercise's weight
-            </div>
-          </div>
+          <div className="text-[11px] font-bold tracking-[0.1em] text-tx uppercase">Warm-up</div>
           <Toggle on={routine.warmup} />
         </div>
 
@@ -448,6 +493,7 @@ export function RoutineEditor({ id }: { id: string }) {
                   name={name}
                   type={type}
                   defaultRest={routine.defaultRestSec}
+                  defaultRir={routineDefaultRIR(routine)}
                   restOpen={restOpen === item.id}
                   onCollapse={() => setExpanded(null)}
                   onRemove={() => {
@@ -483,7 +529,7 @@ export function RoutineEditor({ id }: { id: string }) {
                     <TypeBadge type={type} />
                   </div>
                   <div className="text-[11px] tracking-[0.04em] text-mut tabular-nums">
-                    {itemSummary(item, routine.defaultRestSec, type)}
+                    {itemSummary(item, routine, type)}
                   </div>
                 </button>
                 <div className="flex items-center gap-1 self-center">

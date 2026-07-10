@@ -62,6 +62,7 @@ function mapRoutine(r: Row): Routine {
     id: appId(r),
     name: str(r.name),
     defaultRestSec: num(r.defaultRestSec, 90),
+    ...(typeof r.defaultTargetRIR === 'number' ? { defaultTargetRIR: r.defaultTargetRIR } : {}),
     cycleOrder: numOrNull(r.cycleOrder),
     warmup: bool(r.warmup),
     archived: bool(r.archived),
@@ -76,7 +77,7 @@ function mapRoutineItem(r: Row): RoutineItem {
     order: num(r.order),
     sets: num(r.sets),
     repsPerSet: num(r.repsPerSet),
-    targetRIR: num(r.targetRIR),
+    targetRIR: numOrNull(r.targetRIR),
     ...(typeof r.durSec === 'number' ? { durSec: r.durSec } : {}),
     restSec: numOrNull(r.restSec),
   }

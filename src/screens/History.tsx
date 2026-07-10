@@ -10,7 +10,7 @@ import {
 } from '../data/queries'
 import { update, useDb } from '../data/store'
 import type { Db, Exercise, InsightTarget, Session, SetLog } from '../data/types'
-import { exerciseType, newId } from '../data/types'
+import { effectiveRIR, exerciseType, newId } from '../data/types'
 import { fmtDur } from '../lib/format'
 
 /**
@@ -143,7 +143,9 @@ export function exerciseSummaryLine(db: Db, exerciseId: string): string | null {
 export function targetNote(db: Db, exerciseId: string): string {
   const active = new Set(db.routines.filter((r) => !r.archived).map((r) => r.id))
   const item = db.routineItems.find((it) => it.exerciseId === exerciseId && active.has(it.routineId))
-  return item ? `${item.repsPerSet} @ RIR ${item.targetRIR}` : ''
+  if (!item) return ''
+  const routine = db.routines.find((r) => r.id === item.routineId)
+  return `${item.repsPerSet} @ RIR ${effectiveRIR(item, routine ?? {})}`
 }
 
 /** Build the InsightTarget row an Accept writes (expires 4 weeks out). */

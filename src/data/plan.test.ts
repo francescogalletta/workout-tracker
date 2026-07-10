@@ -3,6 +3,7 @@ import { importRecompPlan, RECOMP_CUSTOM_EXERCISES, RECOMP_ROUTINE_IDS } from '.
 import { itemsForRoutine, rotationRoutines } from './queries'
 import { seedDemoData, STARTER_EXERCISES } from './seed'
 import { getDb, resetDb } from './store'
+import { effectiveRIR } from './types'
 
 const T0 = 1_750_000_000_000
 
@@ -47,11 +48,17 @@ describe('importRecompPlan', () => {
     })
   })
 
-  it('every working set carries the Phase-0 target of RIR 3', () => {
+  it('every working set carries the Phase-0 target of RIR 3 (via routine default)', () => {
     const db = getDb()
     const items = db.routineItems.filter((it) => it.routineId.startsWith('r-recomp-'))
     expect(items.length).toBe(37)
-    expect(items.every((it) => it.targetRIR === 3)).toBe(true)
+    // Phase-0 RIR lives on the routines; items defer to it (null override).
+    expect(items.every((it) => it.targetRIR === null)).toBe(true)
+    const routines = db.routines.filter((r) => r.id.startsWith('r-recomp-'))
+    expect(routines.every((r) => r.defaultTargetRIR === 3)).toBe(true)
+    expect(
+      items.every((it) => effectiveRIR(it, routines.find((r) => r.id === it.routineId)!) === 3),
+    ).toBe(true)
   })
 
   it('spot-checks sets/reps/RIR/rest against the document', () => {
@@ -59,7 +66,7 @@ describe('importRecompPlan', () => {
     // Upper › Barbell bench 4×6–8 → bottom of range, strength-day default 150 s.
     const bench = itemsForRoutine(db, 'r-recomp-upper')[0]
     expect(bench.exerciseId).toBe('bench-press')
-    expect([bench.sets, bench.repsPerSet, bench.targetRIR]).toEqual([4, 6, 3])
+    expect([bench.sets, bench.repsPerSet, bench.targetRIR]).toEqual([4, 6, null])
     expect(bench.restSec).toBe(null) // uses routine default 150
     expect(db.routines.find((r) => r.id === 'r-recomp-upper')!.defaultRestSec).toBe(150)
 
