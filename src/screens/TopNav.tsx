@@ -9,7 +9,7 @@ import { navigate, type Route } from '../router'
  * phones):
  *   1. Title bar — the LIFT wordmark left, the Settings option far right.
  *   2. Section bar just below — the primary destinations Workout · Routines ·
- *      Exercises · History as a tab strip.
+ *      Exercises · Insights as a tab strip.
  * Active route is the accent-coloured, bold link with a short accent underline
  * in the tab strip; the others stay muted. RoutineEditor counts as Routines,
  * run counts as Workout.
@@ -20,14 +20,14 @@ import { navigate, type Route } from '../router'
  */
 
 /** Which nav destination a route highlights (null → nav is not shown at all). */
-type NavKey = 'home' | 'routines' | 'exercises' | 'history' | 'settings'
+type NavKey = 'home' | 'routines' | 'exercises' | 'insights' | 'settings'
 
 /** Primary destinations shown as the section tab strip (second bar). */
 const TABS: ReadonlyArray<readonly [label: string, path: string, key: NavKey]> = [
   ['Workout', '/', 'home'],
   ['Routines', '/routines', 'routines'],
   ['Exercises', '/exercises', 'exercises'],
-  ['History', '/history', 'history'],
+  ['Insights', '/insights', 'insights'],
 ] as const
 
 /** Route → active nav key. RoutineEditor maps onto Routines; run onto Workout. */
@@ -41,8 +41,8 @@ export function activeNavKey(route: Route['name']): NavKey | null {
       return 'routines'
     case 'exercises':
       return 'exercises'
-    case 'history':
-      return 'history'
+    case 'insights':
+      return 'insights'
     case 'settings':
       return 'settings'
     default:

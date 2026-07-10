@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
+import { RestSlider } from '../components/RestSlider'
+import { Toggle } from '../components/Toggle'
 import { classifySyncError } from '../data/backend/syncError'
 import { updateSettings } from '../data/mutations'
+import { isIOS, previewCue } from '../lib/audio'
 import { retrySync, signOut, type SyncStatus, useDb, useSyncStatus } from '../data/store'
 import type { AppSettings } from '../data/types'
 import { navigate } from '../router'
@@ -196,40 +199,27 @@ export function Settings({ status: statusOverride }: { status?: SyncStatus } = {
           {/* Rest timer sound */}
           <button
             type="button"
-            onClick={() => set({ soundEnabled: !s.soundEnabled })}
+            onClick={() => {
+              const next = !s.soundEnabled
+              set({ soundEnabled: next })
+              // Audible confirmation, inside the tap gesture so iOS unlocks audio.
+              if (next) previewCue()
+            }}
             className="box-border flex cursor-pointer items-center justify-between gap-3 rounded-rl border border-rowbd bg-rowbg p-[14px] text-left"
           >
             <RowLabel
               title="Rest timer sound"
-              note="Clicks for the final 5 seconds, tone at zero"
-            />
-            <div
-              className={`box-border flex h-8 w-[52px] items-center rounded-full border px-[3px] ${
-                s.soundEnabled
-                  ? 'justify-end border-acc bg-acc'
-                  : 'justify-start border-stepbd bg-stepbg'
+              note={`Clicks for the final 5 seconds, tone at zero${
+                isIOS() ? ' · the ring/silent switch mutes these' : ''
               }`}
-            >
-              <div
-                className={`h-6 w-6 rounded-full ${s.soundEnabled ? 'bg-onacc' : 'bg-mut'}`}
-              />
-            </div>
+            />
+            <Toggle on={s.soundEnabled} />
           </button>
 
           {/* Default rest */}
-          <Row>
-            <RowLabel title="Default rest" />
-            <div className="flex gap-[6px]">
-              {[60, 90, 120].map((r) => (
-                <SettingChip
-                  key={r}
-                  label={`${r}s`}
-                  numeric
-                  selected={s.defaultRestSec === r}
-                  onClick={() => set({ defaultRestSec: r })}
-                />
-              ))}
-            </div>
+          <Row column>
+            <RowLabel title="Default rest" note="Used when a routine doesn't set its own" />
+            <RestSlider sec={s.defaultRestSec} onCommit={(sec) => set({ defaultRestSec: sec })} />
           </Row>
 
           {/* Weight step */}

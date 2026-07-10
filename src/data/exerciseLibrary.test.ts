@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createExercise, deleteExercise, renameExercise } from './mutations'
+import { createExercise, deleteExercise, deleteExercises, renameExercise } from './mutations'
 import { exerciseById, routinesUsingExercise } from './queries'
 import { seedDemoData } from './seed'
 import { getDb, resetDb } from './store'
@@ -63,5 +63,28 @@ describe('routinesUsingExercise + deleteExercise', () => {
     expect(routinesUsingExercise(getDb(), ex.id)).toEqual([])
     deleteExercise(ex.id)
     expect(exerciseById(getDb(), ex.id)).toBeNull()
+  })
+})
+
+describe('deleteExercises (group delete)', () => {
+  it('removes every id and cascades routine items in one shot, keeping history', () => {
+    const ids = [...new Set(getDb().routineItems.map((it) => it.exerciseId))].slice(0, 2)
+    expect(ids).toHaveLength(2)
+    const logsBefore = getDb().setLogs.length
+
+    deleteExercises(ids)
+
+    const db = getDb()
+    for (const id of ids) {
+      expect(exerciseById(db, id)).toBeNull()
+      expect(db.routineItems.some((it) => it.exerciseId === id)).toBe(false)
+    }
+    expect(db.setLogs.length).toBe(logsBefore)
+  })
+
+  it('is a no-op for an empty selection', () => {
+    const before = getDb()
+    deleteExercises([])
+    expect(getDb()).toBe(before)
   })
 })

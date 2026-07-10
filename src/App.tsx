@@ -16,7 +16,7 @@ import { navigate, useRoute } from './router'
 import { Runner } from './runner/Runner'
 import { useThemeEffect } from './theme'
 import { Exercises } from './screens/Exercises'
-import { History } from './screens/History'
+import { Insights } from './screens/insights'
 import { Home } from './screens/Home'
 import { RoutineEditor } from './screens/RoutineEditor'
 import { Routines } from './screens/Routines'
@@ -82,8 +82,8 @@ export function Shell({ authApi }: { authApi?: AuthApi } = {}) {
     case 'run':
       screen = <RunScreen />
       break
-    case 'history':
-      screen = <History />
+    case 'insights':
+      screen = <Insights />
       break
     case 'settings':
       screen = <Settings />

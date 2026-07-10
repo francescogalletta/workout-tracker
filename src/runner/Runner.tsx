@@ -12,15 +12,15 @@ import { ExercisePicker, filterDb, type PickerFilter } from './components/Exerci
 import { RestOverlay } from './components/RestOverlay'
 import {
   FinishConfirmSheet,
-  KeypadSheet,
   ReorderSheet,
   RestSessionSheet,
   StepChooserSheet,
   SwapConfirmSheet,
 } from './components/sheets'
+import { ConfirmSheet } from '../components/ConfirmSheet'
 import { SummaryScreen } from './components/SummaryScreen'
 import { TypeBadge } from './components/TypeBadge'
-import { QuietLink } from './components/ui'
+import { OutlineButton, QuietLink } from './components/ui'
 import { restoreState, syncLoggedEdits, toPickerItem } from './fromStore'
 import { loggedWorkingSets, reduce, typeOf } from './session'
 import type { DbExercise, SessionExercise, SetEntry } from './types'
@@ -33,11 +33,6 @@ interface HoldState {
   accSec: number
   running: boolean
   overFired: boolean
-}
-
-interface KeypadState {
-  field: 'weight' | 'reps'
-  value: string
 }
 
 /**
@@ -75,11 +70,16 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
   )
   const [now, setNow] = useState(() => Date.now())
 
-  const [keypad, setKeypad] = useState<KeypadState | null>(null)
+  // Native numeric entry (weight/reps): the log bar hides while a field is
+  // focused so it never floats above the keyboard; the nonce focuses the
+  // weight field when Log is hit without a weight.
+  const [numEditing, setNumEditing] = useState(false)
+  const [weightFocusNonce, setWeightFocusNonce] = useState(0)
   const [picker, setPicker] = useState<PickerFilter | null>(null)
   const [swapConfirm, setSwapConfirm] = useState<DbExercise | null>(null)
   const [reorderOpen, setReorderOpen] = useState(false)
   const [finishConfirmOpen, setFinishConfirmOpen] = useState(false)
+  const [addSetConfirm, setAddSetConfirm] = useState<number | null>(null)
   const [stepOverride, setStepOverride] = useState<number | null>(null)
   const [stepChooserOpen, setStepChooserOpen] = useState(false)
   const [restSheetOpen, setRestSheetOpen] = useState(false)
@@ -188,17 +188,12 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     dispatch({ type: 'stepWeight', dir, step })
   }
 
-  const openKeypad = (field: 'weight' | 'reps') => {
-    ensureAudio()
-    setKeypad({ field, value: '' })
-  }
-
   const logActive = () => {
     ensureAudio()
     if (!cur || !curEx) return
     const curType = typeOf(curEx)
     if (curEx.kind === 'strength' && curType === 'weight' && cur.weight === null) {
-      openKeypad('weight')
+      setWeightFocusNonce((n) => n + 1)
       return
     }
     lastClickSecond.current = null
@@ -236,36 +231,6 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     }
     dispatch({ type: 'log', now: Date.now(), settings, logId, durSec })
     if (isTimed) setHold(null)
-  }
-
-  const keypadCurrent = !keypad || !cur
-    ? ''
-    : keypad.field === 'weight'
-      ? cur.weight === null
-        ? ''
-        : String(cur.weight)
-      : String(cur.reps)
-
-  const onKeypadKey = (k: string) => {
-    setKeypad((kp) => {
-      if (!kp) return kp
-      let v = kp.value
-      if (k === '⌫') v = v.slice(0, -1)
-      else if (k === '.') {
-        if (!v.includes('.')) v = (v || '0') + '.'
-      } else if (v.length < 6) v = v + k
-      return { ...kp, value: v }
-    })
-  }
-
-  const onKeypadDone = () => {
-    if (keypad) {
-      const num = parseFloat(keypad.value)
-      if (!Number.isNaN(num)) {
-        dispatch(keypad.field === 'weight' ? { type: 'typeWeight', value: num } : { type: 'typeReps', value: num })
-      }
-    }
-    setKeypad(null)
   }
 
   const applySwapPick = (item: DbExercise, alsoRoutine: boolean) => {
@@ -352,14 +317,21 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
           setLabel={setLabel}
           step={step}
           cardRef={(el) => {
-            if (el) activeCardEl.current = el
+            activeCardEl.current = el
+            // React 19 ref cleanup: stop the tilt loop writing to a detached
+            // node between one active card unmounting and the next mounting.
+            return () => {
+              if (activeCardEl.current === el) activeCardEl.current = null
+            }
           }}
           onStepWeight={stepWeight}
           onHoldStart={holdStart}
           onHoldEnd={holdEnd}
-          onWeightTap={() => openKeypad('weight')}
+          onTypeWeight={(value) => dispatch({ type: 'typeWeight', value })}
           onStepReps={(dir) => dispatch({ type: 'stepReps', dir })}
-          onRepsTap={() => openKeypad('reps')}
+          onTypeReps={(value) => dispatch({ type: 'typeReps', value })}
+          onEditingChange={setNumEditing}
+          weightFocusNonce={weightFocusNonce}
           onSelectRir={(value) => dispatch({ type: 'selectRir', value })}
           onStepMetric={(key, dir) => dispatch({ type: 'stepMetric', key, dir })}
           onDismissPlateau={() => dispatch({ type: 'dismissPlateau', exIdx: e })}
@@ -430,9 +402,10 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     !state.finished &&
     !state.resting &&
     !picker &&
-    !keypad &&
+    !numEditing &&
     !reorderOpen &&
     !finishConfirmOpen &&
+    addSetConfirm === null &&
     !restSheetOpen &&
     !!cur &&
     !cur.logged
@@ -468,12 +441,12 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
   return (
     <div className="flex min-h-screen justify-center bg-bg font-mono">
       <div className="box-border flex w-full max-w-[430px] flex-col pt-[calc(var(--safe-top)+12px)] pr-[max(18px,var(--safe-right))] pb-[calc(var(--safe-bottom)+120px)] pl-[max(18px,var(--safe-left))]">
-        {/* header */}
-        <div className="flex items-baseline justify-between pt-[14px] pb-[6px]">
-          <div className="text-[17px] font-bold tracking-[0.05em] text-tx tt-label">
+        {/* header: name | rest pill · elapsed · order (Finish lives at the bottom) */}
+        <div className="flex items-baseline justify-between gap-3 pt-[14px] pb-[6px]">
+          <div className="min-w-0 flex-1 truncate text-[17px] font-bold tracking-[0.05em] text-tx tt-label">
             {session.routineName}
           </div>
-          <div className="flex items-baseline gap-4">
+          <div className="flex shrink-0 items-baseline gap-3">
             <button
               onClick={() => setRestSheetOpen(true)}
               className="cursor-pointer rounded-full border border-bds bg-transparent px-2.5 py-1 font-mono text-[11px] text-mut"
@@ -484,11 +457,6 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
             <QuietLink
               label="Order"
               onClick={() => setReorderOpen(true)}
-              className="text-[12px] text-mut"
-            />
-            <QuietLink
-              label="Finish"
-              onClick={() => setFinishConfirmOpen(true)}
               className="text-[12px] text-mut"
             />
           </div>
@@ -538,6 +506,16 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
                 renderSetRow(row.e, row.s)
               ),
             )}
+            {sec.exIdx !== null &&
+              state.exercises[sec.exIdx].kind !== 'cardio' &&
+              !state.finished && (
+                <button
+                  onClick={() => setAddSetConfirm(sec.exIdx)}
+                  className="cursor-pointer self-start border-0 bg-transparent p-[4px_2px] font-mono text-[11px] tracking-[0.08em] text-dim uppercase underline underline-offset-[3px]"
+                >
+                  +1 set
+                </button>
+              )}
           </div>
         ))}
 
@@ -549,6 +527,14 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
         >
           + Add exercise
         </button>
+
+        {!state.finished && (
+          <OutlineButton
+            label="Finish workout"
+            onClick={() => setFinishConfirmOpen(true)}
+            className="mt-1"
+          />
+        )}
       </div>
 
       {/* pinned log bar */}
@@ -563,6 +549,20 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
             </button>
           </div>
         </div>
+      )}
+
+      {addSetConfirm !== null && (
+        <ConfirmSheet
+          title="Feeling stronger?"
+          body={`One more set of ${state.exercises[addSetConfirm].name}?`}
+          confirmLabel="+1 set"
+          cancelLabel="Not today"
+          onConfirm={() => {
+            dispatch({ type: 'addSet', exIdx: addSetConfirm })
+            setAddSetConfirm(null)
+          }}
+          onCancel={() => setAddSetConfirm(null)}
+        />
       )}
 
       {finishConfirmOpen && (
@@ -583,17 +583,6 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
             lastClickSecond.current = null
             dispatch({ type: 'restEnd' })
           }}
-        />
-      )}
-
-      {keypad && (
-        <KeypadSheet
-          title={keypad.field === 'weight' ? 'Weight · kg' : 'Reps'}
-          display={keypad.value || keypadCurrent || '0'}
-          dimmed={!keypad.value}
-          onKey={onKeypadKey}
-          onDone={onKeypadDone}
-          onCancel={() => setKeypad(null)}
         />
       )}
 
@@ -652,10 +641,7 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
       {restSheetOpen && (
         <RestSessionSheet
           current={sessionRestValue}
-          onPick={(sec) => {
-            dispatch({ type: 'setSessionRest', sec })
-            setRestSheetOpen(false)
-          }}
+          onPick={(sec) => dispatch({ type: 'setSessionRest', sec })}
           onClose={() => setRestSheetOpen(false)}
         />
       )}

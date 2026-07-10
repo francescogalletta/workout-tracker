@@ -1,3 +1,4 @@
+import { Toggle } from '../components/Toggle'
 import { startSession } from '../data/mutations'
 import { nextInRotation } from '../data/queries'
 import { useDb } from '../data/store'
@@ -262,7 +263,7 @@ function OtherRow({
   )
 }
 
-/** 52×32 in-rotation toggle: accent track + right knob on, outline + left off. */
+/** Captioned in-rotation toggle: "In rotation" label + the shared switch track. */
 function ToggleSwitch({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
     <button
@@ -274,15 +275,7 @@ function ToggleSwitch({ on, onClick }: { on: boolean; onClick: () => void }) {
       >
         In rotation
       </span>
-      <span
-        className={`box-border flex h-[32px] w-[52px] items-center rounded-full border px-[3px] ${
-          on ? 'justify-end border-acc bg-acc' : 'justify-start border-stepbd bg-stepbg'
-        }`}
-      >
-        <span
-          className={`h-[24px] w-[24px] rounded-full ${on ? 'bg-onacc' : 'bg-mut'}`}
-        />
-      </span>
+      <Toggle on={on} />
     </button>
   )
 }

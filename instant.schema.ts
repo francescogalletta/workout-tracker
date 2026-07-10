@@ -37,6 +37,7 @@ const _schema = i.schema({
     routines: i.entity({
       name: i.string(),
       defaultRestSec: i.number(),
+      defaultTargetRIR: i.number().optional(),
       cycleOrder: i.number().optional(),
       warmup: i.boolean(),
       archived: i.boolean(),
@@ -49,7 +50,7 @@ const _schema = i.schema({
       order: i.number(),
       sets: i.number(),
       repsPerSet: i.number(),
-      targetRIR: i.number(),
+      targetRIR: i.number().optional(),
       durSec: i.number().optional(),
       restSec: i.number().optional(),
       slug: i.string().indexed(),

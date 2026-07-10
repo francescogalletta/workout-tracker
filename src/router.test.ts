@@ -9,8 +9,12 @@ describe('parseRoute', () => {
     expect(parseRoute('#/routines/r-push-a')).toEqual({ name: 'routineEditor', id: 'r-push-a' })
     expect(parseRoute('#/exercises')).toEqual({ name: 'exercises' })
     expect(parseRoute('#/run')).toEqual({ name: 'run' })
-    expect(parseRoute('#/history')).toEqual({ name: 'history' })
+    expect(parseRoute('#/insights')).toEqual({ name: 'insights' })
     expect(parseRoute('#/settings')).toEqual({ name: 'settings' })
+  })
+
+  it('keeps the pre-rename #/history hash working (bookmarks, installed PWAs)', () => {
+    expect(parseRoute('#/history')).toEqual({ name: 'insights' })
   })
 
   it('treats an empty or missing hash as home', () => {

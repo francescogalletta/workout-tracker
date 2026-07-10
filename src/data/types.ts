@@ -74,6 +74,11 @@ export interface Routine {
   id: string
   name: string
   defaultRestSec: number
+  /**
+   * Routine-wide RIR target. Absent on legacy rows → 2; read through
+   * `routineDefaultRIR()` (same migration pattern as `Exercise.type`).
+   */
+  defaultTargetRIR?: number
   /** Position in the rotation; null = not in rotation. */
   cycleOrder: number | null
   /** Whether to prepend auto warm-ups to the first exercise (HANDOFF §6). */
@@ -88,11 +93,25 @@ export interface RoutineItem {
   order: number
   sets: number
   repsPerSet: number
-  targetRIR: number
+  /** Overrides the routine's default RIR target; null = use routine default. */
+  targetRIR: number | null
   /** Target hold seconds for `time` exercises; null/absent otherwise. */
   durSec?: number | null
   /** Overrides the routine default; null = use routine default. */
   restSec: number | null
+}
+
+/** The routine's RIR target, defaulting legacy rows (no field) to 2. */
+export function routineDefaultRIR(r: { defaultTargetRIR?: number }): number {
+  return r.defaultTargetRIR ?? 2
+}
+
+/** An item's effective RIR target: its override, else the routine default. */
+export function effectiveRIR(
+  item: Pick<RoutineItem, 'targetRIR'>,
+  routine: { defaultTargetRIR?: number },
+): number {
+  return item.targetRIR ?? routineDefaultRIR(routine)
 }
 
 export type SessionStatus = 'active' | 'completed' | 'discarded'

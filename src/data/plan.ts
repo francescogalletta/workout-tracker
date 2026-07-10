@@ -231,6 +231,7 @@ export function importRecompPlan(_now: number = Date.now()): void {
       id: routineId(spec.slug),
       name: spec.name,
       defaultRestSec: spec.defaultRestSec,
+      defaultTargetRIR: PHASE0_RIR,
       cycleOrder: base + i,
       warmup: WARMUP,
       archived: false,
@@ -248,7 +249,7 @@ export function importRecompPlan(_now: number = Date.now()): void {
           order: i,
           sets: it.sets,
           repsPerSet: it.reps,
-          targetRIR: PHASE0_RIR,
+          targetRIR: null,
           restSec: it.rest ?? null,
         })
       })

@@ -26,7 +26,7 @@ import { restoreState, seedsForRoutine } from './runner/fromStore'
 import { nextUnlogged, reduce } from './runner/session'
 import type { SessionState } from './runner/types'
 import { addItem, setItemRest, setRotation, stepSets } from './screens/RoutineEditor'
-import { buildInsightTarget, targetNote } from './screens/History'
+import { buildInsightTarget, targetNote } from './screens/insights/helpers'
 import { createRoutine, lastSessionLine } from './screens/routineOps'
 
 /**

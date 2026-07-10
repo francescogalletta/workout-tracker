@@ -1,4 +1,5 @@
 import type { Db, SetLog } from '../data/types'
+import { effectiveRIR } from '../data/types'
 import { fmtKg, roundToIncrement } from './round'
 
 /**
@@ -95,6 +96,9 @@ export function suggestedAdjustments(db: Db, weeks: number, now: number): Adjust
     const avgRir = rirs.length ? Math.round((rirs.reduce((a, b) => a + b, 0) / rirs.length) * 10) / 10 : null
     const current = currentWeight(sets)
 
+    const routine = db.routines.find((r) => r.id === item.routineId)
+    const targetRir = effectiveRIR(item, routine ?? {})
+
     if (frac0 >= 0.4 - 1e-9 && avgReps < item.repsPerSet) {
       out.push({
         exerciseId,
@@ -105,15 +109,15 @@ export function suggestedAdjustments(db: Db, weeks: number, now: number): Adjust
         detail: `${Math.round(frac0 * 100)}% of sets at RIR 0 · avg ${fmtKg(avgReps)} reps vs target ${item.repsPerSet}`,
         severity: frac0,
       })
-    } else if (avgRir !== null && avgRir >= item.targetRIR + 1 - 1e-9) {
+    } else if (avgRir !== null && avgRir >= targetRir + 1 - 1e-9) {
       out.push({
         exerciseId,
         exerciseName: name,
         kind: 'raise',
         currentWeightKg: current,
         suggestedWeightKg: current + db.settings.weightIncrementKg,
-        detail: `avg RIR ${fmtKg(avgRir)} vs target ${item.targetRIR} — room to add weight`,
-        severity: avgRir - item.targetRIR,
+        detail: `avg RIR ${fmtKg(avgRir)} vs target ${targetRir} — room to add weight`,
+        severity: avgRir - targetRir,
       })
     }
   }

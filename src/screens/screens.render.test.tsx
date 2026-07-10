@@ -73,10 +73,12 @@ describe('Exercises', () => {
     const html = renderToString(<Exercises />)
     expect(html).toContain('Exercises')
     expect(html).toContain('Search exercises')
+    expect(html).toContain('type="search"') // native search keyboard on mobile
     expect(html).toContain('+ Create custom exercise')
-    // Row management controls are present (aria-labels on the icon buttons).
-    expect(html).toContain('aria-label="Rename"')
-    expect(html).toContain('aria-label="Delete"')
+    // Gesture hint replaces the old per-row rename/delete icon buttons.
+    expect(html).toContain('Tap to rename · hold to select')
+    expect(html).not.toContain('aria-label="Rename"')
+    expect(html).not.toContain('aria-label="Delete"')
     // A known seed exercise renders.
     expect(html.toLowerCase()).toContain('bench press')
   })

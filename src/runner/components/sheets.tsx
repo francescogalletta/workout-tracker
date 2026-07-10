@@ -1,50 +1,8 @@
+import { ConfirmSheet } from '../../components/ConfirmSheet'
+import { RestSlider } from '../../components/RestSlider'
 import { fmtStep } from '../../lib/format'
 import type { SessionState } from '../types'
 import { AccentButton, OutlineButton, Sheet } from './ui'
-
-const KEYPAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'] as const
-
-export function KeypadSheet({
-  title,
-  display,
-  dimmed,
-  onKey,
-  onDone,
-  onCancel,
-}: {
-  title: string
-  display: string
-  dimmed: boolean
-  onKey: (k: string) => void
-  onDone: () => void
-  onCancel: () => void
-}) {
-  return (
-    <Sheet onClose={onCancel} z={50}>
-      <div className="flex items-baseline justify-between pb-[14px]">
-        <div className="text-[11px] tracking-[0.16em] text-mut uppercase">{title}</div>
-        <div
-          className="text-[40px] leading-none font-extrabold tabular-nums"
-          style={{ color: dimmed ? 'var(--dim)' : 'var(--acc)' }}
-        >
-          {display}
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {KEYPAD_KEYS.map((k) => (
-          <button
-            key={k}
-            onClick={() => onKey(k)}
-            className="flex h-[54px] cursor-pointer items-center justify-center rounded-rs border border-stepbd bg-stepbg font-mono text-[20px] font-bold text-tx"
-          >
-            {k}
-          </button>
-        ))}
-      </div>
-      <AccentButton label="Done" onClick={onDone} className="mt-[10px] text-[15px]" />
-    </Sheet>
-  )
-}
 
 const STEP_OPTIONS = [0.5, 1, 1.25, 2.5, 5]
 
@@ -166,8 +124,6 @@ export function SwapConfirmSheet({
   )
 }
 
-const REST_SESSION_OPTIONS = [60, 90, 120, 150]
-
 /** Session-scoped rest default picker (CHANGE_REQUEST §3.4). */
 export function RestSessionSheet({
   current,
@@ -184,23 +140,12 @@ export function RestSessionSheet({
         <div className="pb-[6px] text-[11px] tracking-[0.16em] text-mut uppercase">
           Rest · this session
         </div>
-        <div className="grid grid-cols-4 gap-2">
-          {REST_SESSION_OPTIONS.map((v) => (
-            <button
-              key={v}
-              onClick={() => onPick(v)}
-              className={`flex h-[52px] cursor-pointer items-center justify-center rounded-rs border font-mono text-[16px] font-bold tabular-nums ${
-                current === v ? 'border-acc bg-acc text-onacc' : 'border-stepbd bg-stepbg text-sec'
-              }`}
-            >
-              {v}s
-            </button>
-          ))}
-        </div>
-        <div className="pt-[10px] text-center text-[10px] tracking-[0.06em] text-dim uppercase">
+        <RestSlider sec={current} onCommit={onPick} />
+        <div className="pt-[6px] text-center text-[10px] tracking-[0.06em] text-dim uppercase">
           Applies to all remaining rests today. Exercises with their own rest keep it. Your saved
           default stays unchanged.
         </div>
+        <AccentButton label="Done" onClick={onClose} className="mt-1" />
       </div>
     </Sheet>
   )
@@ -216,15 +161,14 @@ export function FinishConfirmSheet({
   onKeepGoing: () => void
 }) {
   return (
-    <Sheet onClose={onKeepGoing} z={65}>
-      <div className="flex flex-col gap-[10px]">
-        <div className="text-[13px] font-extrabold tracking-[0.04em] text-tx uppercase">
-          Finish workout?
-        </div>
-        <div className="pb-1 text-[12px] text-mut">{workingSets} working sets logged so far</div>
-        <AccentButton label="Finish workout" onClick={onFinish} />
-        <OutlineButton label="Keep going" onClick={onKeepGoing} />
-      </div>
-    </Sheet>
+    <ConfirmSheet
+      title="Finish workout?"
+      body={`${workingSets} working sets logged so far`}
+      confirmLabel="Finish workout"
+      cancelLabel="Keep going"
+      onConfirm={onFinish}
+      onCancel={onKeepGoing}
+      z={65}
+    />
   )
 }

@@ -1,10 +1,10 @@
 import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { activeTargetFor, exerciseById } from '../data/queries'
-import { ensureCatalog, seedDemoData } from '../data/seed'
-import { getDb, resetDb, update } from '../data/store'
+import { activeTargetFor, exerciseById } from '../../data/queries'
+import { ensureCatalog, seedDemoData } from '../../data/seed'
+import { getDb, resetDb, update } from '../../data/store'
+import { Insights } from './index'
 import {
-  History,
   TARGET_WEEKS,
   buildInsightTarget,
   exerciseSummaryLine,
@@ -17,9 +17,9 @@ import {
   targetNote,
   targetWeeksLeft,
   toggleFilter,
-} from './History'
-import { newId } from '../data/types'
-import type { Session, SetLog } from '../data/types'
+} from './helpers'
+import { newId } from '../../data/types'
+import type { Session, SetLog } from '../../data/types'
 
 const T0 = 1_750_000_000_000
 const DAY = 24 * 3600 * 1000
@@ -143,11 +143,12 @@ describe('target accept / remove / expiry math', () => {
   })
 })
 
-describe('History render smoke — Log tab', () => {
+describe('Insights render smoke — History tab', () => {
   it('renders session cards with routines, exercises and set values', () => {
     seedDemoData(T0)
-    const html = renderToString(<History now={T0} />)
-    expect(html).toContain('History')
+    const html = renderToString(<Insights now={T0} />)
+    expect(html).toContain('Insights') // screen title
+    expect(html).toContain('History') // sub-tab label
     expect(html).toContain('Push A')
     expect(html).toContain('Bench Press')
     expect(html).toContain('62.5') // a logged working weight
@@ -158,7 +159,7 @@ describe('History render smoke — Log tab', () => {
 
   it('shows the empty state on a fresh store', () => {
     ensureCatalog()
-    const html = renderToString(<History now={T0} />)
+    const html = renderToString(<Insights now={T0} />)
     expect(html).toContain('No workouts yet')
   })
 
@@ -188,7 +189,7 @@ describe('History render smoke — Log tab', () => {
     }
     update((db) => ({ ...db, sessions: [...db.sessions, session], setLogs: [...db.setLogs, log] }))
 
-    const html = renderToString(<History now={T0} />)
+    const html = renderToString(<Insights now={T0} />)
     expect(html).toContain('Plank')
     expect(html).toContain('0:47')
     // timed table shows a single "time" row, not kg/reps/rir columns
@@ -197,10 +198,10 @@ describe('History render smoke — Log tab', () => {
   })
 })
 
-describe('History render smoke — Insights · Plan tab', () => {
+describe('Insights render smoke — Plan tab', () => {
   it('renders window chips, suggestions, active targets and muscle balance', () => {
     seedDemoData(T0)
-    const html = renderToString(<History now={T0} initialView="insights" />)
+    const html = renderToString(<Insights now={T0} initialView="plan" />)
     expect(html).toContain('Plan · Build strength')
     expect(html).toContain('Suggested adjustments')
     expect(html).toContain('Muscle balance')
@@ -214,7 +215,7 @@ describe('History render smoke — Insights · Plan tab', () => {
 
   it('shows the empty state on a fresh store', () => {
     ensureCatalog()
-    const html = renderToString(<History now={T0} initialView="insights" />)
+    const html = renderToString(<Insights now={T0} initialView="plan" />)
     expect(html).toContain('Nothing to plan yet')
   })
 })
