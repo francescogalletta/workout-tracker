@@ -241,6 +241,49 @@ describe('applyAdd', () => {
   })
 })
 
+describe('addExtraSet (+1 set)', () => {
+  it('appends one unlogged set cloned from the last working set', () => {
+    const s0 = fresh()
+    const before = s0.sets[0].length
+    const s = reduce(s0, { type: 'addSet', exIdx: 0 })
+    expect(s.sets[0]).toHaveLength(before + 1)
+    const last = s.sets[0][s.sets[0].length - 1]
+    const src = s0.sets[0][before - 1]
+    expect(last).toMatchObject({
+      isWarmup: false,
+      logged: false,
+      weight: src.weight,
+      reps: src.reps,
+      rir: src.rir,
+    })
+  })
+
+  it('never copies logged state or logId from the source set', () => {
+    let s = fresh()
+    // Log every set of exercise 1 so its last working set carries a logId.
+    s = { ...s, ptr: { e: 1, s: 0 } }
+    s = reduce(s, { type: 'typeWeight', value: 20 })
+    while (s.sets[1].some((x) => !x.logged)) {
+      const idx = s.sets[1].findIndex((x) => !x.logged)
+      s = { ...s, ptr: { e: 1, s: idx }, resting: null }
+      s = logSet(s, T0, DEFAULT_SETTINGS, `log-${idx}`)
+    }
+    const added = reduce(s, { type: 'addSet', exIdx: 1 })
+    const last = added.sets[1][added.sets[1].length - 1]
+    expect(last.logged).toBe(false)
+    expect(last.logId).toBeUndefined()
+    expect(last.weight).toBe(20)
+  })
+
+  it('is a no-op for cardio and leaves the pointer unchanged otherwise', () => {
+    const s0 = fresh()
+    const cardioIdx = s0.exercises.findIndex((m) => m.kind === 'cardio')
+    expect(reduce(s0, { type: 'addSet', exIdx: cardioIdx })).toBe(s0)
+    const s = reduce(s0, { type: 'addSet', exIdx: 0 })
+    expect(s.ptr).toEqual(s0.ptr)
+  })
+})
+
 describe('summary', () => {
   function completed(): SessionState {
     let s = fresh()

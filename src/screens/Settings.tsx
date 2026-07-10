@@ -3,6 +3,7 @@ import { RestSlider } from '../components/RestSlider'
 import { Toggle } from '../components/Toggle'
 import { classifySyncError } from '../data/backend/syncError'
 import { updateSettings } from '../data/mutations'
+import { isIOS, previewCue } from '../lib/audio'
 import { retrySync, signOut, type SyncStatus, useDb, useSyncStatus } from '../data/store'
 import type { AppSettings } from '../data/types'
 import { navigate } from '../router'
@@ -198,12 +199,19 @@ export function Settings({ status: statusOverride }: { status?: SyncStatus } = {
           {/* Rest timer sound */}
           <button
             type="button"
-            onClick={() => set({ soundEnabled: !s.soundEnabled })}
+            onClick={() => {
+              const next = !s.soundEnabled
+              set({ soundEnabled: next })
+              // Audible confirmation, inside the tap gesture so iOS unlocks audio.
+              if (next) previewCue()
+            }}
             className="box-border flex cursor-pointer items-center justify-between gap-3 rounded-rl border border-rowbd bg-rowbg p-[14px] text-left"
           >
             <RowLabel
               title="Rest timer sound"
-              note="Clicks for the final 5 seconds, tone at zero"
+              note={`Clicks for the final 5 seconds, tone at zero${
+                isIOS() ? ' · the ring/silent switch mutes these' : ''
+              }`}
             />
             <Toggle on={s.soundEnabled} />
           </button>

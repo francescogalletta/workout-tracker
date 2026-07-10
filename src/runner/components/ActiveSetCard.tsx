@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import { fmtDur, fmtMetric, fmtStep, fmtW } from '../../lib/format'
 import { typeOf } from '../session'
 import type { SessionExercise, SetEntry } from '../types'
@@ -10,7 +11,7 @@ export interface ActiveSetCardProps {
   entry: SetEntry
   setLabel: string
   step: number
-  cardRef: (el: HTMLDivElement | null) => void
+  cardRef: Ref<HTMLDivElement>
   onStepWeight: (dir: 1 | -1) => void
   onHoldStart: () => void
   onHoldEnd: () => void

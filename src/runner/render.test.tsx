@@ -65,5 +65,8 @@ describe('Runner render', () => {
     expect(html).toContain('Cable Fly')
     expect(html).toContain('Log warm-up') // pinned bar for the active warm-up
     expect(html).toContain('+ Add exercise')
+    expect(html).toContain('+1 set') // per-exercise extra-set affordance
+    expect(html).toContain('Finish workout') // in-flow finish button at the bottom
+    expect(html).not.toContain('>Finish<') // the old header QuietLink is gone
   })
 })

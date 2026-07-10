@@ -52,7 +52,7 @@ export function tiltFromPointer(
  * tips a couple of degrees in 3D, so it reads as a light physical object that
  * lags behind the phone's motion.
  */
-export function tiltTransform(x: number, y: number, maxPx = 6, maxDeg = 2.5): string {
+export function tiltTransform(x: number, y: number, maxPx = 10, maxDeg = 4): string {
   const tx = (-x * maxPx).toFixed(2)
   const ty = (-y * maxPx).toFixed(2)
   const ry = (x * maxDeg).toFixed(2)
@@ -61,11 +61,23 @@ export function tiltTransform(x: number, y: number, maxPx = 6, maxDeg = 2.5): st
 }
 
 /** One exponential-smoothing step toward `target` (0 < factor ≤ 1). */
-export function approach(current: number, target: number, factor = 0.12): number {
+export function approach(current: number, target: number, factor = 0.15): number {
   return current + (target - current) * factor
 }
 
-export function useTilt<T extends HTMLElement>(elRef: RefObject<T | null>): void {
+export interface TiltOptions {
+  /** Max counter-shift in px. */
+  maxPx?: number
+  /** Max 3D tip in degrees. */
+  maxDeg?: number
+  /** Smoothing factor per frame (0 < factor ≤ 1). */
+  factor?: number
+}
+
+export function useTilt<T extends HTMLElement>(
+  elRef: RefObject<T | null>,
+  { maxPx = 10, maxDeg = 4, factor = 0.15 }: TiltOptions = {},
+): void {
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
@@ -86,11 +98,11 @@ export function useTilt<T extends HTMLElement>(elRef: RefObject<T | null>): void
     }
 
     const loop = () => {
-      cur.x = approach(cur.x, target.x)
-      cur.y = approach(cur.y, target.y)
+      cur.x = approach(cur.x, target.x, factor)
+      cur.y = approach(cur.y, target.y, factor)
       const el = elRef.current
       if (el) {
-        el.style.transform = tiltTransform(cur.x, cur.y)
+        el.style.transform = tiltTransform(cur.x, cur.y, maxPx, maxDeg)
         el.style.willChange = 'transform'
       }
       raf = requestAnimationFrame(loop)
@@ -132,5 +144,5 @@ export function useTilt<T extends HTMLElement>(elRef: RefObject<T | null>): void
         el.style.willChange = ''
       }
     }
-  }, [elRef])
+  }, [elRef, maxPx, maxDeg, factor])
 }

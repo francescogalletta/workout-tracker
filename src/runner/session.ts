@@ -88,6 +88,7 @@ export type Action =
   | { type: 'move'; index: number; dir: 1 | -1 }
   | { type: 'swap'; exIdx: number; item: DbExercise }
   | { type: 'add'; item: DbExercise }
+  | { type: 'addSet'; exIdx: number }
   | { type: 'dismissPlateau'; exIdx: number }
   | { type: 'restAdjust'; deltaMs: number }
   | { type: 'restEnd' }
@@ -152,6 +153,9 @@ export function reduce(state: SessionState, action: Action): SessionState {
 
     case 'add':
       return applyAdd(state, action.item)
+
+    case 'addSet':
+      return addExtraSet(state, action.exIdx)
 
     case 'dismissPlateau': {
       const exercises = state.exercises.map((m, i) =>
@@ -352,6 +356,37 @@ export function applyAdd(state: SessionState, item: DbExercise): SessionState {
     exercises: [...state.exercises, ex],
     sets: [...state.sets, newSets],
   }
+}
+
+/**
+ * Append one extra unlogged working set to an exercise ("Feeling stronger?").
+ * Clones the shape of the last working set — weight carries the value the
+ * lifter settled on, reps/RIR/target duration repeat — but never its logId or
+ * logged flag. Cardio is a single open-ended block; no-op there. The pointer
+ * is untouched: unlogged extras are simply lost if the session is resumed
+ * later, which is fine for a spur-of-the-moment set.
+ */
+export function addExtraSet(state: SessionState, exIdx: number): SessionState {
+  const ex = state.exercises[exIdx]
+  if (!ex || ex.kind === 'cardio' || state.finished) return state
+  const arr = state.sets[exIdx]
+  const working = arr.filter((x) => !x.isWarmup)
+  const last = working[working.length - 1] ?? arr[arr.length - 1]
+  const type = typeOf(ex)
+  const fresh: SetEntry = last
+    ? {
+        isWarmup: false,
+        logged: false,
+        weight: last.weight,
+        reps: last.reps,
+        rir: last.rir,
+        ...(type === 'time' ? { durSec: last.durSec ?? TIME_DEFAULT_DUR } : {}),
+        values: null,
+      }
+    : freshSetOf(type)
+  const sets = cloneSets(state.sets)
+  sets[exIdx] = [...sets[exIdx], fresh]
+  return { ...state, sets }
 }
 
 /** Logged working sets, flat (summary + finish confirm). */
