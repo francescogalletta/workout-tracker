@@ -53,9 +53,12 @@ export function setRoutineName(db: Db, routineId: string, name: string): Db {
 /**
  * Set the routine default rest AND reset every item's override to null, so a
  * new default really applies to the whole routine (owner decision — before,
- * items with explicit rests silently kept them).
+ * items with explicit rests silently kept them). A no-op when the value is
+ * unchanged so an idle re-commit never wipes hand-tuned overrides.
  */
 export function setDefaultRest(db: Db, routineId: string, sec: number): Db {
+  const routine = db.routines.find((r) => r.id === routineId)
+  if (!routine || routine.defaultRestSec === sec) return db
   return {
     ...db,
     routines: db.routines.map((r) => (r.id === routineId ? { ...r, defaultRestSec: sec } : r)),
@@ -67,6 +70,8 @@ export function setDefaultRest(db: Db, routineId: string, sec: number): Db {
 
 /** Same override-resetting semantics as `setDefaultRest`, for the RIR target. */
 export function setDefaultTargetRIR(db: Db, routineId: string, rir: number): Db {
+  const routine = db.routines.find((r) => r.id === routineId)
+  if (!routine || routineDefaultRIR(routine) === rir) return db
   return {
     ...db,
     routines: db.routines.map((r) => (r.id === routineId ? { ...r, defaultTargetRIR: rir } : r)),
@@ -134,7 +139,7 @@ export function reorderItem(db: Db, routineId: string, itemId: string, toIndex: 
   const ordered = itemsForRoutine(db, routineId)
   const from = ordered.findIndex((it) => it.id === itemId)
   if (from === -1) return db
-  const to = Math.max(0, Math.min(ordered.length - 1, toIndex))
+  const to = clamp(toIndex, 0, ordered.length - 1)
   if (to === from) return db
   const next = ordered.slice()
   const [moved] = next.splice(from, 1)
@@ -406,7 +411,9 @@ export function RoutineEditor({ id }: { id: string }) {
   const [picker, setPicker] = useState<PickerFilter | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const itemIds = itemsForRoutine(db, id).map((it) => it.id)
+  // Compute the routine's items once per render; itemIds derives from it.
+  const items = itemsForRoutine(db, id)
+  const itemIds = items.map((it) => it.id)
   const reorder = useDragReorder(
     itemIds.length,
     (from, to) => update((d) => reorderItem(d, id, itemIds[from], to)),
@@ -423,7 +430,6 @@ export function RoutineEditor({ id }: { id: string }) {
 
   if (!routine) return null
 
-  const items = itemsForRoutine(db, id)
   const inRotation = routine.cycleOrder !== null
   const subtitle = `${items.length} ${items.length === 1 ? 'exercise' : 'exercises'} · ${
     inRotation ? 'in rotation' : 'not in rotation'

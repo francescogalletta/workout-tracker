@@ -51,11 +51,6 @@ export function Exercises() {
     setSelected(null)
   }
 
-  // "Used in N routines" aggregated across the checked exercises.
-  const usedEntries = selected
-    ? [...selected].reduce((a, id) => a + routinesUsingExercise(db, id).length, 0)
-    : 0
-
   if (creating) {
     return (
       <CreateExercise
@@ -151,18 +146,7 @@ export function Exercises() {
         <RenameSheet exercise={renaming} onClose={() => setRenaming(null)} />
       )}
       {confirmDelete && selected && (
-        <ConfirmSheet
-          title={`Delete ${selected.size} ${selected.size === 1 ? 'exercise' : 'exercises'}?`}
-          body={`${
-            usedEntries === 0
-              ? 'Not used in any routine.'
-              : `Used in ${usedEntries} routine ${usedEntries === 1 ? 'entry' : 'entries'} — those will be removed.`
-          } Past workout history is kept.`}
-          confirmLabel="Delete"
-          cancelLabel="Keep"
-          onConfirm={deleteSelected}
-          onCancel={() => setConfirmDelete(false)}
-        />
+        <DeleteConfirm selected={selected} onConfirm={deleteSelected} onCancel={() => setConfirmDelete(false)} />
       )}
     </div>
   )
@@ -221,6 +205,38 @@ function ExerciseRow({
         </div>
       </div>
     </button>
+  )
+}
+
+/**
+ * Delete-confirm sheet. Computing "used in N routines" only here (not every
+ * Exercises render) keeps the aggregate off the hot render path — it is read
+ * nowhere else.
+ */
+function DeleteConfirm({
+  selected,
+  onConfirm,
+  onCancel,
+}: {
+  selected: Set<string>
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const db = useDb()
+  const usedEntries = [...selected].reduce((a, id) => a + routinesUsingExercise(db, id).length, 0)
+  return (
+    <ConfirmSheet
+      title={`Delete ${selected.size} ${selected.size === 1 ? 'exercise' : 'exercises'}?`}
+      body={`${
+        usedEntries === 0
+          ? 'Not used in any routine.'
+          : `Used in ${usedEntries} routine ${usedEntries === 1 ? 'entry' : 'entries'} — those will be removed.`
+      } Past workout history is kept.`}
+      confirmLabel="Delete"
+      cancelLabel="Keep"
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
   )
 }
 

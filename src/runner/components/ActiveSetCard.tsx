@@ -251,6 +251,14 @@ function NumberField({
   const [text, setText] = useState<string | null>(null)
   const seenNonce = useRef(focusNonce)
 
+  // Latest values for the unmount cleanup so it never captures stale closures.
+  const textRef = useRef(text)
+  const onCommitRef = useRef(onCommit)
+  const onEditingChangeRef = useRef(onEditingChange)
+  textRef.current = text
+  onCommitRef.current = onCommit
+  onEditingChangeRef.current = onEditingChange
+
   const begin = () => {
     setText(value === null ? '' : String(value))
     onEditingChange?.(true)
@@ -264,11 +272,27 @@ function NumberField({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusNonce])
 
-  const commit = () => {
-    if (text !== null) {
-      const num = parseFloat(text.replace(',', '.'))
-      if (!Number.isNaN(num)) onCommit(num)
+  // Unmounting while editing (e.g. tapping another set row keys a remount)
+  // fires no blur — commit the in-flight text and release the Runner's Log bar
+  // here so the typed value isn't lost and editing state can't strand. The
+  // null guard means a normal blur (which nulls textRef) never double-commits.
+  useEffect(() => {
+    return () => {
+      if (textRef.current !== null) {
+        const num = parseFloat(textRef.current.replace(',', '.'))
+        if (Number.isFinite(num)) onCommitRef.current(num)
+        onEditingChangeRef.current?.(false)
+        textRef.current = null
+      }
     }
+  }, [])
+
+  const commit = () => {
+    if (textRef.current !== null) {
+      const num = parseFloat(textRef.current.replace(',', '.'))
+      if (Number.isFinite(num)) onCommit(num)
+    }
+    textRef.current = null
     setText(null)
     onEditingChange?.(false)
   }

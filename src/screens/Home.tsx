@@ -1,9 +1,8 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { startSession } from '../data/mutations'
 import { lastCompletedSession, nextInRotation, routineById } from '../data/queries'
 import { useDb } from '../data/store'
 import type { Routine } from '../data/types'
-import { useTilt } from '../lib/useTilt'
 import { navigate } from '../router'
 import { Sheet } from '../runner/components/ui'
 import {
@@ -124,14 +123,8 @@ function HomeSuggestion({
       ? 'One-off · not in rotation'
       : `Next in rotation · ${rotIndex + 1} of ${rotation.length}`
 
-  // Device-tilt parallax on the wordmark + next-workout block, the same motion
-  // the runner's active set card gets (slightly larger amplitude — it's the
-  // hero of the screen).
-  const cardEl = useRef<HTMLDivElement | null>(null)
-  useTilt(cardEl, { maxPx: 12, maxDeg: 3 })
-
   return (
-    <div ref={cardEl} className="flex flex-col gap-[10px]">
+    <div className="flex flex-col gap-[10px]">
       <div className="text-[11px] tracking-[0.18em] text-mut uppercase">{eyebrow}</div>
       <div className="tt-label text-[44px] font-extrabold tracking-[0.02em] text-tx">
         {selected.name}
