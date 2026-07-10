@@ -148,14 +148,29 @@ against the code; PLAUSIBLE = realistic but device-dependent.
   sheet is open; `addSetConfirm` stores the `SessionExercise` object (reorder keeps the
   reference so `indexOf` re-finds it; a swap replaces it so the stale +1 is dropped).
 - `reorderItem` inline clamp — **FIXED**: uses the file's own `clamp()`.
-- Accessibility — **PARTIAL / DEFERRED**: routine-editor reorder already has a keyboard
-  path (ArrowUp/Down `onKeyDown` + `aria-label` on the ≡ handle), left as-is. Exercises
-  multi-select delete is still long-press-only (no keyboard/VoiceOver entry into select
-  mode) — **DEFERRED**: a clean fix needs a dedicated select-mode affordance, larger
-  than this pass.
-- `weightFocusNonce` passive-effect focus / iOS keyboard-raise — **DEFERRED**: needs an
-  imperative focus handle driven from `logActive`; out of scope here.
-- Remaining duplication — **DEFERRED**: `SheetRule` vs `HairlineLabel`, and the
-  `GROUP_ORDER`/`WEEK_MS` copies across engine/insights/queries/fromStore, are a
-  cross-module consolidation (shared module + import churn) rather than a local win;
-  left to a dedicated refactor to avoid risk in this batch.
+- Accessibility — **FIXED**: routine-editor reorder already had a keyboard path
+  (ArrowUp/Down `onKeyDown` + `aria-label` on the ≡ handle), left as-is. Exercises
+  multi-select delete now has a non-pointer path: a header **Select** button (shown when
+  the list is non-empty) enters select mode from the keyboard/VoiceOver — long-press
+  stays as the pointer path. In select mode each row is a real `role="checkbox"` with
+  `aria-checked` + `aria-label={exercise name}`, so Enter/Space toggle it and VoiceOver
+  reads the state; the header Delete is already a plain focusable button. Idle rows carry
+  `aria-label="Rename <name>"`. Minimal visuals unchanged (the ✓ box stays `aria-hidden`,
+  state conveyed by `aria-checked`).
+- `weightFocusNonce` passive-effect focus / iOS keyboard-raise — **FIXED**: replaced the
+  nonce+passive-effect with an imperative handle. `ActiveSetCard` is now `forwardRef`
+  exposing `ActiveSetCardHandle.focusWeight()`, which calls the weight `NumberField`'s
+  `useImperativeHandle` `focus()`; `logActive` invokes it synchronously inside its own tap
+  gesture so the input mounts (autoFocus) within the gesture stack and iOS raises the
+  keyboard. `focus()` is idle-guarded (`textRef.current === null`) so it can't double-fire
+  the begin/end editing counter (fix 7); the unmount-commit cleanup (fix 6) is untouched.
+- Remaining duplication — **FIXED**: new `src/lib/constants.ts` is the single source for
+  `WEEK_MS`, `GROUP_ORDER`, and `targetWeeksLeft()`; engine/insights, data/queries,
+  insights/helpers, and runner/fromStore now import from it (fromStore's inlined
+  weeks-left math uses `targetWeeksLeft`; helpers re-exports it so PlanTab/tests keep
+  their import path). `SheetRule` and `HairlineLabel` were byte-identical — merged onto
+  `HairlineLabel` (in runner/components/ui, already shared by Exercises); `SheetRule`
+  deleted and its 5 Insights call sites switched. `plural()` moved from Settings into
+  screens/routineOps beside `exerciseCountLabel` and gained an optional irregular-plural
+  arg; Exercises' two inline pluralization ternaries now use `exerciseCountLabel(size)`
+  and `plural(n, 'routine entry', 'routine entries')`.

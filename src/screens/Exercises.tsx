@@ -8,6 +8,7 @@ import { useLongPress } from '../lib/useLongPress'
 import { CreateExercise, PICKER_GROUPS } from '../runner/components/ExercisePicker'
 import { TypeBadge } from '../runner/components/TypeBadge'
 import { AccentButton, Chip, HairlineLabel, OutlineButton, Sheet } from '../runner/components/ui'
+import { exerciseCountLabel, plural } from './routineOps'
 
 /**
  * Exercises library (owner decision — the one place to manage the exercise
@@ -92,7 +93,17 @@ export function Exercises() {
               </div>
             </>
           ) : (
-            <div className="tt-label text-[17px] font-bold tracking-[0.05em] text-tx">Exercises</div>
+            <>
+              <div className="tt-label text-[17px] font-bold tracking-[0.05em] text-tx">Exercises</div>
+              {list.length > 0 && (
+                <button
+                  onClick={() => setSelected(new Set())}
+                  className="tt-label m-[-10px] cursor-pointer border-0 bg-transparent p-[10px] font-mono text-[12px] tracking-[0.08em] text-mut underline underline-offset-[3px]"
+                >
+                  Select
+                </button>
+              )}
+            </>
           )}
         </div>
 
@@ -175,6 +186,13 @@ function ExerciseRow({
   return (
     <button
       {...handlers}
+      // In select mode the row is a checkbox (Enter/Space toggle it, VoiceOver
+      // reads the checked state); otherwise a plain rename button. `Select` in
+      // the header is the keyboard/AT path into select mode (long-press is the
+      // pointer path), so delete is reachable without a gesture.
+      role={selecting ? 'checkbox' : undefined}
+      aria-checked={selecting ? checked : undefined}
+      aria-label={selecting ? ex.name : `Rename ${ex.name}`}
       onClick={() => {
         if (firedRef.current) return
         onTap()
@@ -226,11 +244,11 @@ function DeleteConfirm({
   const usedEntries = [...selected].reduce((a, id) => a + routinesUsingExercise(db, id).length, 0)
   return (
     <ConfirmSheet
-      title={`Delete ${selected.size} ${selected.size === 1 ? 'exercise' : 'exercises'}?`}
+      title={`Delete ${exerciseCountLabel(selected.size)}?`}
       body={`${
         usedEntries === 0
           ? 'Not used in any routine.'
-          : `Used in ${usedEntries} routine ${usedEntries === 1 ? 'entry' : 'entries'} — those will be removed.`
+          : `Used in ${plural(usedEntries, 'routine entry', 'routine entries')} — those will be removed.`
       } Past workout history is kept.`}
       confirmLabel="Delete"
       cancelLabel="Keep"

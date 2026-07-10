@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Ref } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import { fmtDur, fmtMetric, fmtStep, fmtW } from '../../lib/format'
 import { typeOf } from '../session'
 import type { SessionExercise, SetEntry } from '../types'
@@ -20,8 +20,6 @@ export interface ActiveSetCardProps {
   onTypeReps: (value: number) => void
   /** True while a native numeric input is focused — Runner hides the log bar. */
   onEditingChange?: (editing: boolean) => void
-  /** Increment to focus the weight field (log-without-weight flow). */
-  weightFocusNonce?: number
   onSelectRir: (v: number) => void
   onStepMetric: (key: string, dir: 1 | -1) => void
   onDismissPlateau: () => void
@@ -33,12 +31,27 @@ export interface ActiveSetCardProps {
   timerStarted: boolean
 }
 
+/**
+ * Imperative handle so Runner can raise the weight field's keyboard
+ * synchronously from the Log-bar tap. A passive effect (the old nonce) focused
+ * outside the tap's gesture stack, so iOS focused without showing the keyboard.
+ */
+export interface ActiveSetCardHandle {
+  focusWeight: () => void
+}
+
 /** The current set, expanded inline into the logging card. */
-export function ActiveSetCard(p: ActiveSetCardProps) {
+export const ActiveSetCard = forwardRef<ActiveSetCardHandle, ActiveSetCardProps>(function ActiveSetCard(
+  p,
+  ref,
+) {
   const { exercise: ex, entry } = p
   const isCardio = ex.kind === 'cardio'
   const type = typeOf(ex)
   const hasReco = !entry.isWarmup && !isCardio && type === 'weight' && entry.weight !== null && !!ex.reco
+
+  const weightFieldRef = useRef<NumberFieldHandle>(null)
+  useImperativeHandle(ref, () => ({ focusWeight: () => weightFieldRef.current?.focus() }), [])
 
   return (
     <div
@@ -61,13 +74,13 @@ export function ActiveSetCard(p: ActiveSetCardProps) {
                   onPointerLeave={p.onHoldEnd}
                 />
                 <NumberField
+                  ref={weightFieldRef}
                   value={entry.weight}
                   display={fmtW(entry.weight)}
                   unit="kg"
                   fontSize={52}
                   inputMode="decimal"
                   dimmed={entry.weight === null}
-                  focusNonce={p.weightFocusNonce}
                   onCommit={p.onTypeWeight}
                   onEditingChange={p.onEditingChange}
                 />
@@ -217,39 +230,37 @@ export function ActiveSetCard(p: ActiveSetCardProps) {
       )}
     </div>
   )
-}
+})
 
 /**
  * The big tappable numeral. Idle it renders the styled display value; tapping
  * swaps in a native input styled identically (`inputMode` picks the phone's
  * decimal/number pad; the font is far past iOS's 16px zoom floor). Selects all
  * on focus, commits on blur/Done, reverts on unparsable input — the reducer
- * clamps ranges. `focusNonce` lets Runner focus the weight field when Log is
- * hit without a weight.
+ * clamps ranges. The imperative `focus()` handle lets Runner raise the weight
+ * field's keyboard when Log is hit without a weight.
  */
-function NumberField({
-  value,
-  display,
-  unit,
-  fontSize,
-  inputMode,
-  dimmed = false,
-  focusNonce = 0,
-  onCommit,
-  onEditingChange,
-}: {
-  value: number | null
-  display: string
-  unit: string
-  fontSize: number
-  inputMode: 'decimal' | 'numeric'
-  dimmed?: boolean
-  focusNonce?: number
-  onCommit: (v: number) => void
-  onEditingChange?: (editing: boolean) => void
-}) {
+interface NumberFieldHandle {
+  focus: () => void
+}
+
+const NumberField = forwardRef<
+  NumberFieldHandle,
+  {
+    value: number | null
+    display: string
+    unit: string
+    fontSize: number
+    inputMode: 'decimal' | 'numeric'
+    dimmed?: boolean
+    onCommit: (v: number) => void
+    onEditingChange?: (editing: boolean) => void
+  }
+>(function NumberField(
+  { value, display, unit, fontSize, inputMode, dimmed = false, onCommit, onEditingChange },
+  ref,
+) {
   const [text, setText] = useState<string | null>(null)
-  const seenNonce = useRef(focusNonce)
 
   // Latest values for the unmount cleanup so it never captures stale closures.
   const textRef = useRef(text)
@@ -264,13 +275,15 @@ function NumberField({
     onEditingChange?.(true)
   }
 
-  useEffect(() => {
-    if (focusNonce !== seenNonce.current) {
-      seenNonce.current = focusNonce
-      begin()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusNonce])
+  // Called synchronously from Runner's Log-bar tap so the input mounts (and its
+  // autoFocus fires) inside the gesture stack and iOS actually raises the
+  // keyboard. Guarded to idle so it can't re-enter editing (double begin →
+  // double onEditingChange increment) while a field is already open.
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (textRef.current === null) begin()
+    },
+  }))
 
   // Unmounting while editing (e.g. tapping another set row keys a remount)
   // fires no blur — commit the in-flight text and release the Runner's Log bar
@@ -338,7 +351,7 @@ function NumberField({
       <div className="mt-[5px] text-[10px] tracking-[0.14em] text-mut uppercase">{unit}</div>
     </div>
   )
-}
+})
 
 /**
  * Full-width hold timer for `time`-type sets (CHANGE_REQUEST §3.3). Purely

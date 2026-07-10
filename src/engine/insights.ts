@@ -1,5 +1,6 @@
 import type { Db, SetLog } from '../data/types'
 import { effectiveRIR } from '../data/types'
+import { GROUP_ORDER, WEEK_MS } from '../lib/constants'
 import { fmtKg, roundToIncrement } from './round'
 
 /**
@@ -13,8 +14,6 @@ import { fmtKg, roundToIncrement } from './round'
  *
  * Muscle balance: working sets per week per muscle group vs the 10–20 band.
  */
-
-const WEEK_MS = 7 * 24 * 3600 * 1000
 
 export interface Adjustment {
   exerciseId: string
@@ -127,9 +126,6 @@ export function suggestedAdjustments(db: Db, weeks: number, now: number): Adjust
     return b.severity - a.severity
   })
 }
-
-/** Canonical display order for groups; unknown groups go last, alphabetical. */
-const GROUP_ORDER = ['chest', 'back', 'shoulders', 'arms', 'legs', 'core']
 
 export function muscleBalance(db: Db, weeks: number, now: number): BalanceRow[] {
   const logs = windowLogs(db, weeks, now)

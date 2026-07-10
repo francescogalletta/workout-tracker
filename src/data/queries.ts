@@ -1,11 +1,10 @@
+import { WEEK_MS } from '../lib/constants'
 import type { Db, Exercise, InsightTarget, Routine, RoutineItem, Session, SetLog } from './types'
 
 /**
  * Pure read helpers over a Db snapshot. All of these are safe to call in
  * render (they derive, never mutate).
  */
-
-const WEEK_MS = 7 * 24 * 3600 * 1000
 
 export function exerciseById(db: Db, id: string): Exercise | null {
   return db.exercises.find((e) => e.id === id) ?? null
