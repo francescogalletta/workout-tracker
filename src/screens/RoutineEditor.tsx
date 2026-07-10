@@ -13,6 +13,7 @@ import {
   routineDefaultRIR,
 } from '../data/types'
 import { fmtDur } from '../lib/format'
+import { useDragReorder } from '../lib/useDragReorder'
 import { navigate } from '../router'
 import {
   ExercisePicker,
@@ -125,6 +126,25 @@ export function setItemRest(db: Db, itemId: string, restSec: number | null): Db 
   return {
     ...db,
     routineItems: db.routineItems.map((it) => (it.id === itemId ? { ...it, restSec } : it)),
+  }
+}
+
+/** Drop an item at `toIndex` (clamped); re-densifies order 0..n-1. */
+export function reorderItem(db: Db, routineId: string, itemId: string, toIndex: number): Db {
+  const ordered = itemsForRoutine(db, routineId)
+  const from = ordered.findIndex((it) => it.id === itemId)
+  if (from === -1) return db
+  const to = Math.max(0, Math.min(ordered.length - 1, toIndex))
+  if (to === from) return db
+  const next = ordered.slice()
+  const [moved] = next.splice(from, 1)
+  next.splice(to, 0, moved)
+  const orderById = new Map(next.map((it, i) => [it.id, i]))
+  return {
+    ...db,
+    routineItems: db.routineItems.map((it) =>
+      orderById.has(it.id) ? { ...it, order: orderById.get(it.id)! } : it,
+    ),
   }
 }
 
@@ -386,6 +406,17 @@ export function RoutineEditor({ id }: { id: string }) {
   const [picker, setPicker] = useState<PickerFilter | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
+  const itemIds = itemsForRoutine(db, id).map((it) => it.id)
+  const reorder = useDragReorder(
+    itemIds.length,
+    (from, to) => update((d) => reorderItem(d, id, itemIds[from], to)),
+    // Collapse open cards when a drag starts so every row is uniform height.
+    () => {
+      setExpanded(null)
+      setRestOpen(null)
+    },
+  )
+
   useEffect(() => {
     if (!routine) navigate('/routines')
   }, [routine])
@@ -465,6 +496,11 @@ export function RoutineEditor({ id }: { id: string }) {
         </div>
 
         {/* items */}
+        {items.length > 1 && (
+          <div className="pb-2 text-[10px] tracking-[0.06em] text-dim uppercase">
+            Drag ≡ to reorder
+          </div>
+        )}
         <div className="flex flex-col gap-2">
           {items.map((item, i) => {
             const ex = exerciseById(db, item.exerciseId)
@@ -496,7 +532,12 @@ export function RoutineEditor({ id }: { id: string }) {
               )
             }
             return (
-              <div key={item.id} className="flex items-stretch gap-2">
+              <div
+                key={item.id}
+                data-drag-row
+                style={reorder.rowStyle(i)}
+                className="flex items-stretch gap-2"
+              >
                 <button
                   onClick={() => {
                     setExpanded(item.id)
@@ -514,22 +555,19 @@ export function RoutineEditor({ id }: { id: string }) {
                     {itemSummary(item, routine, type)}
                   </div>
                 </button>
-                <div className="flex items-center gap-1 self-center">
+                <div className="flex items-center self-center">
                   <button
-                    onClick={() => update((d) => moveItem(d, id, item.id, -1))}
-                    className={`flex h-12 w-12 cursor-pointer items-center justify-center rounded-rs border border-stepbd bg-stepbg text-[15px] ${
-                      i === 0 ? 'text-dim' : 'text-tx'
-                    }`}
+                    {...reorder.handleProps(i)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                        e.preventDefault()
+                        update((d) => moveItem(d, id, item.id, e.key === 'ArrowUp' ? -1 : 1))
+                      }
+                    }}
+                    aria-label={`Reorder ${name}`}
+                    className="flex h-12 w-12 cursor-grab items-center justify-center rounded-rs border border-stepbd bg-stepbg text-[17px] text-mut select-none active:cursor-grabbing"
                   >
-                    ↑
-                  </button>
-                  <button
-                    onClick={() => update((d) => moveItem(d, id, item.id, 1))}
-                    className={`flex h-12 w-12 cursor-pointer items-center justify-center rounded-rs border border-stepbd bg-stepbg text-[15px] ${
-                      i === items.length - 1 ? 'text-dim' : 'text-tx'
-                    }`}
-                  >
-                    ↓
+                    ≡
                   </button>
                 </div>
               </div>

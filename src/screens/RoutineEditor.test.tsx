@@ -11,6 +11,7 @@ import {
   itemSummary,
   moveItem,
   removeItem,
+  reorderItem,
   RoutineEditor,
   setDefaultRest,
   setDefaultTargetRIR,
@@ -57,6 +58,22 @@ describe('item reorder', () => {
 })
 
 describe('remove item', () => {
+  it('reorderItem drops an item at an arbitrary index and re-densifies', () => {
+    seedDemoData(T0)
+    const before = itemsForRoutine(db(), 'r-push-a')
+    const first = before[0].id
+    update((d) => reorderItem(d, 'r-push-a', first, before.length - 1))
+    const after = itemsForRoutine(db(), 'r-push-a')
+    expect(after[after.length - 1].id).toBe(first)
+    expect(after.map((it) => it.order)).toEqual(after.map((_, i) => i))
+    // clamped + same-index drops are no-ops
+    const snapshot = db()
+    update((d) => reorderItem(d, 'r-push-a', first, 99))
+    expect(itemsForRoutine(db(), 'r-push-a')[after.length - 1].id).toBe(first)
+    update((d) => reorderItem(d, 'r-push-a', 'missing', 0))
+    expect(db().routineItems).toEqual(snapshot.routineItems)
+  })
+
   it('deletes the item and re-densifies remaining order', () => {
     seedDemoData(T0)
     const items = itemsForRoutine(db(), 'r-push-a')
