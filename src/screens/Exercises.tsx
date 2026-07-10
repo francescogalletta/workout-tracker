@@ -136,7 +136,9 @@ export function Exercises() {
             />
           ))}
           {list.length === 0 && (
-            <div className="py-6 text-center text-[12px] text-dim">No matches</div>
+            <div className="py-6 text-center text-[12px] text-dim">
+              {db.exercises.length === 0 ? 'No exercises yet — create your first below' : 'No matches'}
+            </div>
           )}
           {list.length > 0 && (
             <div className="pt-1 text-center text-[10px] tracking-[0.06em] text-dim uppercase">

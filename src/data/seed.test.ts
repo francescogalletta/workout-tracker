@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { DEMO_ROUTINE, EXERCISE_DB } from '../runner/demo'
-import { ensureCatalog, seedDemoData, STARTER_EXERCISES } from './seed'
+import { cleanupSeededCatalog, ensureCatalog, seedDemoData, STARTER_EXERCISES } from './seed'
 import { getDb, resetDb, update } from './store'
+import type { Exercise } from './types'
 
 const T0 = 1_750_000_000_000
 
@@ -44,6 +45,93 @@ describe('starter catalog', () => {
     update((db) => ({ ...db, exercises: db.exercises.slice(0, 1) }))
     ensureCatalog()
     expect(getDb().exercises.length).toBe(1)
+  })
+})
+
+describe('cleanupSeededCatalog', () => {
+  function seedEx(id: string, isCustom: boolean): Exercise {
+    return {
+      id,
+      name: id,
+      muscleGroup: 'chest',
+      primaryMuscle: 'chest',
+      equipment: 'barbell',
+      loadType: 'weighted',
+      kind: 'strength',
+      type: 'weight',
+      isCustom,
+      notes: '',
+    }
+  }
+
+  // A store mixing an unreferenced seed row (should be deleted) with seed rows
+  // held by a live routine, an archived routine, a setLog, and a target, plus a
+  // custom row nothing references (never touched).
+  function setupMixed(): void {
+    update((db) => ({
+      ...db,
+      exercises: [
+        seedEx('unused-seed', false),
+        seedEx('routine-seed', false),
+        seedEx('archived-routine-seed', false),
+        seedEx('log-seed', false),
+        seedEx('target-seed', false),
+        seedEx('custom-unused', true),
+      ],
+      routines: [
+        { id: 'r-live', name: 'Live', defaultRestSec: 90, cycleOrder: 0, warmup: false, archived: false },
+        { id: 'r-arch', name: 'Arch', defaultRestSec: 90, cycleOrder: null, warmup: false, archived: true },
+      ],
+      routineItems: [
+        { id: 'ri1', routineId: 'r-live', exerciseId: 'routine-seed', order: 0, sets: 3, repsPerSet: 10, targetRIR: null, restSec: null },
+        { id: 'ri2', routineId: 'r-arch', exerciseId: 'archived-routine-seed', order: 0, sets: 3, repsPerSet: 10, targetRIR: null, restSec: null },
+      ],
+      setLogs: [
+        { id: 'l1', sessionId: 's1', exerciseId: 'log-seed', exerciseName: 'Log Seed', setNumber: 1, isWarmup: false, weightKg: 50, reps: 10, rir: 2, values: null, completedAt: T0 },
+      ],
+      targets: [
+        { id: 't1', exerciseId: 'target-seed', weightKg: 60, note: '', createdAt: T0, expiresAt: T0 + 1000 },
+      ],
+    }))
+  }
+
+  it('deletes unreferenced non-custom exercises', () => {
+    setupMixed()
+    cleanupSeededCatalog()
+    const ids = getDb().exercises.map((e) => e.id)
+    expect(ids).not.toContain('unused-seed')
+  })
+
+  it('keeps routine-referenced (live + archived), setLog-referenced, target-referenced, and custom exercises', () => {
+    setupMixed()
+    cleanupSeededCatalog()
+    const ids = new Set(getDb().exercises.map((e) => e.id))
+    expect(ids.has('routine-seed')).toBe(true)
+    expect(ids.has('archived-routine-seed')).toBe(true)
+    expect(ids.has('log-seed')).toBe(true)
+    expect(ids.has('target-seed')).toBe(true)
+    expect(ids.has('custom-unused')).toBe(true)
+    expect(ids.size).toBe(5)
+  })
+
+  it('is idempotent on a second run', () => {
+    setupMixed()
+    cleanupSeededCatalog()
+    const first = JSON.stringify(getDb())
+    cleanupSeededCatalog()
+    expect(JSON.stringify(getDb())).toBe(first)
+  })
+
+  it('leaves a fresh empty store empty (never reseeds)', () => {
+    expect(getDb().exercises).toHaveLength(0)
+    cleanupSeededCatalog()
+    expect(getDb().exercises).toHaveLength(0)
+  })
+
+  it('never deletes custom exercises even when unreferenced', () => {
+    update((db) => ({ ...db, exercises: [seedEx('c1', true), seedEx('c2', true)] }))
+    cleanupSeededCatalog()
+    expect(getDb().exercises.map((e) => e.id)).toEqual(['c1', 'c2'])
   })
 })
 

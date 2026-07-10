@@ -1,4 +1,4 @@
-import { ensureCatalog } from './seed'
+import { STARTER_EXERCISES } from './seed'
 import { update } from './store'
 import type { Db, Exercise, LoadType, Routine, RoutineItem } from './types'
 
@@ -190,6 +190,19 @@ function routineId(slug: string): string {
   return `${ID_PREFIX}${slug}`
 }
 
+/**
+ * Every exercise the plan references, keyed by id, resolved from the starter
+ * catalog (joint-friendly staples the plan reuses) plus the plan's own customs.
+ * The catalog is no longer pre-seeded, so the importer must create exactly the
+ * exercises it uses (upsert-if-absent) rather than relying on `ensureCatalog`.
+ */
+const PLAN_EXERCISE_SOURCE = new Map<string, Exercise>(
+  [...STARTER_EXERCISES, ...RECOMP_CUSTOM_EXERCISES].map((e) => [e.id, e]),
+)
+const PLAN_EXERCISE_IDS: string[] = [
+  ...new Set(PLAN_ROUTINES.flatMap((r) => r.items.map((it) => it.exerciseId))),
+]
+
 /** The plan warms up the first compound of EVERY session, so warmup is on. */
 const WARMUP = true
 
@@ -200,16 +213,19 @@ const WARMUP = true
  * the plan takes the tail rotation slots.
  */
 export function importRecompPlan(_now: number = Date.now()): void {
-  ensureCatalog()
-
   const planRoutineIds = new Set(PLAN_ROUTINES.map((r) => routineId(r.slug)))
 
   update((db: Db): Db => {
-    // 1. Upsert-if-absent the custom exercises the plan needs.
+    // 1. Upsert-if-absent EXACTLY the exercises the plan uses (starter staples +
+    //    the plan's customs). The catalog is no longer pre-seeded, so the plan
+    //    owns creating everything it references. Idempotent: existing rows (by
+    //    id) are left untouched.
     const haveEx = new Set(db.exercises.map((e) => e.id))
     const exercises = [...db.exercises]
-    for (const ce of RECOMP_CUSTOM_EXERCISES) {
-      if (!haveEx.has(ce.id)) exercises.push(ce)
+    for (const id of PLAN_EXERCISE_IDS) {
+      if (haveEx.has(id)) continue
+      const def = PLAN_EXERCISE_SOURCE.get(id)
+      if (def) exercises.push(def)
     }
 
     // 2. Renormalise the rotation of the user's OTHER routines densely,
