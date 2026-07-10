@@ -121,9 +121,19 @@ export function renameExercise(id: string, name: string): void {
  * setLog carries its own `exerciseName`, so past workouts are unaffected.
  */
 export function deleteExercise(id: string): void {
+  deleteExercises([id])
+}
+
+/**
+ * Batch variant for the library's select mode — one update() so the whole
+ * group delete is a single persist / sync transaction.
+ */
+export function deleteExercises(ids: string[]): void {
+  const gone = new Set(ids)
+  if (gone.size === 0) return
   update((db) => ({
     ...db,
-    exercises: db.exercises.filter((e) => e.id !== id),
-    routineItems: db.routineItems.filter((it) => it.exerciseId !== id),
+    exercises: db.exercises.filter((e) => !gone.has(e.id)),
+    routineItems: db.routineItems.filter((it) => !gone.has(it.exerciseId)),
   }))
 }
