@@ -3,6 +3,7 @@ import { createExercise, deleteExercise, renameExercise } from '../data/mutation
 import { routinesUsingExercise } from '../data/queries'
 import { useDb } from '../data/store'
 import { exerciseType, MAX_EXERCISE_NAME_LEN, type Exercise } from '../data/types'
+import { ConfirmSheet } from '../components/ConfirmSheet'
 import { CreateExercise, PICKER_GROUPS } from '../runner/components/ExercisePicker'
 import { TypeBadge } from '../runner/components/TypeBadge'
 import { AccentButton, Chip, HairlineLabel, OutlineButton, Sheet } from '../runner/components/ui'
@@ -182,23 +183,16 @@ function DeleteSheet({
       ? 'Not used in any routine.'
       : `Used in ${usedIn} ${usedIn === 1 ? 'routine' : 'routines'} — those entries will be removed.`
   return (
-    <Sheet onClose={onClose} z={50}>
-      <div className="flex flex-col gap-[10px]">
-        <div className="tt-label text-[13px] font-extrabold tracking-[0.04em] text-tx">
-          Delete {exercise.name}?
-        </div>
-        <div className="pb-1 text-[12px] leading-[1.6] text-mut">
-          {usage} Past workout history is kept.
-        </div>
-        <AccentButton
-          label="Delete exercise"
-          onClick={() => {
-            deleteExercise(exercise.id)
-            onClose()
-          }}
-        />
-        <OutlineButton label="Keep" onClick={onClose} />
-      </div>
-    </Sheet>
+    <ConfirmSheet
+      title={`Delete ${exercise.name}?`}
+      body={`${usage} Past workout history is kept.`}
+      confirmLabel="Delete exercise"
+      cancelLabel="Keep"
+      onConfirm={() => {
+        deleteExercise(exercise.id)
+        onClose()
+      }}
+      onCancel={onClose}
+    />
   )
 }

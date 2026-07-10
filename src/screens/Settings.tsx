@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Toggle } from '../components/Toggle'
 import { classifySyncError } from '../data/backend/syncError'
 import { updateSettings } from '../data/mutations'
 import { retrySync, signOut, type SyncStatus, useDb, useSyncStatus } from '../data/store'
@@ -203,17 +204,7 @@ export function Settings({ status: statusOverride }: { status?: SyncStatus } = {
               title="Rest timer sound"
               note="Clicks for the final 5 seconds, tone at zero"
             />
-            <div
-              className={`box-border flex h-8 w-[52px] items-center rounded-full border px-[3px] ${
-                s.soundEnabled
-                  ? 'justify-end border-acc bg-acc'
-                  : 'justify-start border-stepbd bg-stepbg'
-              }`}
-            >
-              <div
-                className={`h-6 w-6 rounded-full ${s.soundEnabled ? 'bg-onacc' : 'bg-mut'}`}
-              />
-            </div>
+            <Toggle on={s.soundEnabled} />
           </button>
 
           {/* Default rest */}

@@ -1,3 +1,4 @@
+import { ConfirmSheet } from '../../components/ConfirmSheet'
 import { fmtStep } from '../../lib/format'
 import type { SessionState } from '../types'
 import { AccentButton, OutlineButton, Sheet } from './ui'
@@ -216,15 +217,14 @@ export function FinishConfirmSheet({
   onKeepGoing: () => void
 }) {
   return (
-    <Sheet onClose={onKeepGoing} z={65}>
-      <div className="flex flex-col gap-[10px]">
-        <div className="text-[13px] font-extrabold tracking-[0.04em] text-tx uppercase">
-          Finish workout?
-        </div>
-        <div className="pb-1 text-[12px] text-mut">{workingSets} working sets logged so far</div>
-        <AccentButton label="Finish workout" onClick={onFinish} />
-        <OutlineButton label="Keep going" onClick={onKeepGoing} />
-      </div>
-    </Sheet>
+    <ConfirmSheet
+      title="Finish workout?"
+      body={`${workingSets} working sets logged so far`}
+      confirmLabel="Finish workout"
+      cancelLabel="Keep going"
+      onConfirm={onFinish}
+      onCancel={onKeepGoing}
+      z={65}
+    />
   )
 }

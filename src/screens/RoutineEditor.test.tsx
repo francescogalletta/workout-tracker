@@ -10,7 +10,6 @@ import {
   deleteRoutine,
   itemSummary,
   moveItem,
-  normalizeRotation,
   removeItem,
   RoutineEditor,
   setDefaultRest,
@@ -185,20 +184,6 @@ describe('RIR + default rest writes', () => {
 })
 
 describe('rotation toggle normalization', () => {
-  it('normalizeRotation densifies gappy orders, leaving nulls untouched', () => {
-    const out = normalizeRotation([
-      { id: 'a', cycleOrder: 5 },
-      { id: 'b', cycleOrder: null },
-      { id: 'c', cycleOrder: 2 },
-      { id: 'd', cycleOrder: 9 },
-    ])
-    const byId = new Map(out.map((r) => [r.id, r.cycleOrder]))
-    expect(byId.get('c')).toBe(0)
-    expect(byId.get('a')).toBe(1)
-    expect(byId.get('d')).toBe(2)
-    expect(byId.get('b')).toBeNull()
-  })
-
   it('disabling a middle routine renormalizes the rest to 0..n-1', () => {
     seedDemoData(T0)
     // Seed rotation: push-a(0) pull-a(1) legs(2) push-b(3)

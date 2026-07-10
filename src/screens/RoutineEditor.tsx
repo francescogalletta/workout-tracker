@@ -18,7 +18,8 @@ import {
   type PickerFilter,
 } from '../runner/components/ExercisePicker'
 import { toPickerItem } from '../runner/fromStore'
-import { AccentButton, OutlineButton, Sheet } from '../runner/components/ui'
+import { ConfirmSheet } from '../components/ConfirmSheet'
+import { Toggle } from '../components/Toggle'
 import { RirScale } from '../runner/components/RirScale'
 import { TypeBadge } from '../runner/components/TypeBadge'
 import { addToRotation, removeFromRotation } from './routineOps'
@@ -155,18 +156,6 @@ export function addItem(db: Db, routineId: string, exerciseId: string, id: strin
   return { ...db, routineItems: [...db.routineItems, item] }
 }
 
-/** Re-rank every in-rotation routine to a dense 0..n-1 by current cycleOrder. */
-export function normalizeRotation<T extends { id: string; cycleOrder: number | null }>(
-  routines: T[],
-): T[] {
-  const ranked = routines
-    .filter((r) => r.cycleOrder !== null)
-    .slice()
-    .sort((a, b) => (a.cycleOrder as number) - (b.cycleOrder as number))
-  const rank = new Map(ranked.map((r, i) => [r.id, i]))
-  return routines.map((r) => (rank.has(r.id) ? { ...r, cycleOrder: rank.get(r.id)! } : r))
-}
-
 /**
  * Toggle rotation membership. Enabling appends this routine at the end of the
  * cycle; disabling drops it. Either way the remaining routines stay a dense
@@ -175,7 +164,7 @@ export function normalizeRotation<T extends { id: string; cycleOrder: number | n
  * Delegates to the shared rotation helpers in `routineOps` (which Home and
  * Routines also use) so the editor and the list screens can never disagree on
  * cycleOrder semantics — notably both now exclude archived routines from the
- * numbering. `normalizeRotation` below is retained as a generic densifier.
+ * numbering.
  */
 export function setRotation(db: Db, routineId: string, inRotation: boolean): Db {
   return {
@@ -209,18 +198,6 @@ export function itemSummary(item: RoutineItem, defaultRest: number, type: Exerci
 }
 
 // ── Small presentational bits ──────────────────────────────────────────────
-
-function Toggle({ on }: { on: boolean }) {
-  return (
-    <div
-      className={`box-border flex h-8 w-[52px] items-center rounded-full border px-[3px] ${
-        on ? 'justify-end border-acc bg-acc' : 'justify-start border-stepbd bg-stepbg'
-      }`}
-    >
-      <div className={`h-6 w-6 rounded-full ${on ? 'bg-onacc' : 'bg-mut'}`} />
-    </div>
-  )
-}
 
 function ChoiceChip({
   label,
@@ -584,24 +561,17 @@ export function RoutineEditor({ id }: { id: string }) {
       </div>
 
       {confirmDelete && (
-        <Sheet onClose={() => setConfirmDelete(false)} z={50}>
-          <div className="flex flex-col gap-[10px]">
-            <div className="text-[13px] font-extrabold tracking-[0.04em] text-tx tt-label">
-              Delete {routine.name}?
-            </div>
-            <div className="pb-1 text-[12px] text-mut">
-              Past workouts stay in history — only the routine and its plan are removed.
-            </div>
-            <AccentButton
-              label="Delete routine"
-              onClick={() => {
-                update((d) => deleteRoutine(d, id))
-                navigate('/routines')
-              }}
-            />
-            <OutlineButton label="Keep" onClick={() => setConfirmDelete(false)} />
-          </div>
-        </Sheet>
+        <ConfirmSheet
+          title={`Delete ${routine.name}?`}
+          body="Past workouts stay in history — only the routine and its plan are removed."
+          confirmLabel="Delete routine"
+          cancelLabel="Keep"
+          onConfirm={() => {
+            update((d) => deleteRoutine(d, id))
+            navigate('/routines')
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
 
       {picker && (
