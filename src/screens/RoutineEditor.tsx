@@ -454,6 +454,7 @@ export function RoutineEditor({ id }: { id: string }) {
         </div>
 
         <input
+          enterKeyHint="done"
           value={routine.name}
           onChange={(e) => update((d) => setRoutineName(d, id, e.target.value))}
           maxLength={MAX_ROUTINE_NAME_LEN}

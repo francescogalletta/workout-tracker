@@ -109,10 +109,12 @@ export function ExercisePicker({
           <QuietLink label="Cancel" onClick={onCancel} className="text-[12px] text-mut" />
         </div>
         <input
+          type="search"
+          enterKeyHint="search"
           value={filter.query}
           onChange={(e) => onChange({ ...filter, query: e.target.value })}
           placeholder="Search exercises"
-          className="box-border h-12 w-full rounded-rs border border-stepbd bg-stepbg px-[14px] font-mono text-[14px] text-tx outline-none"
+          className="box-border h-12 w-full rounded-rs border border-stepbd bg-stepbg px-[14px] font-mono text-[16px] text-tx outline-none"
         />
         <HairlineLabel label="Muscle group" />
         <div className="flex flex-wrap gap-[6px]">
@@ -222,12 +224,13 @@ export function CreateExercise({
         </div>
 
         <input
+          enterKeyHint="done"
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={40}
           placeholder="Exercise name"
           autoFocus
-          className="box-border h-12 w-full rounded-rs border border-stepbd bg-stepbg px-[14px] font-mono text-[15px] text-tx outline-none"
+          className="box-border h-12 w-full rounded-rs border border-stepbd bg-stepbg px-[14px] font-mono text-[16px] text-tx outline-none"
         />
 
         <div className="flex flex-col gap-[8px]">

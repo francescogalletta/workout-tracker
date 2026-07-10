@@ -12,7 +12,6 @@ import { ExercisePicker, filterDb, type PickerFilter } from './components/Exerci
 import { RestOverlay } from './components/RestOverlay'
 import {
   FinishConfirmSheet,
-  KeypadSheet,
   ReorderSheet,
   RestSessionSheet,
   StepChooserSheet,
@@ -34,11 +33,6 @@ interface HoldState {
   accSec: number
   running: boolean
   overFired: boolean
-}
-
-interface KeypadState {
-  field: 'weight' | 'reps'
-  value: string
 }
 
 /**
@@ -76,7 +70,11 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
   )
   const [now, setNow] = useState(() => Date.now())
 
-  const [keypad, setKeypad] = useState<KeypadState | null>(null)
+  // Native numeric entry (weight/reps): the log bar hides while a field is
+  // focused so it never floats above the keyboard; the nonce focuses the
+  // weight field when Log is hit without a weight.
+  const [numEditing, setNumEditing] = useState(false)
+  const [weightFocusNonce, setWeightFocusNonce] = useState(0)
   const [picker, setPicker] = useState<PickerFilter | null>(null)
   const [swapConfirm, setSwapConfirm] = useState<DbExercise | null>(null)
   const [reorderOpen, setReorderOpen] = useState(false)
@@ -190,17 +188,12 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     dispatch({ type: 'stepWeight', dir, step })
   }
 
-  const openKeypad = (field: 'weight' | 'reps') => {
-    ensureAudio()
-    setKeypad({ field, value: '' })
-  }
-
   const logActive = () => {
     ensureAudio()
     if (!cur || !curEx) return
     const curType = typeOf(curEx)
     if (curEx.kind === 'strength' && curType === 'weight' && cur.weight === null) {
-      openKeypad('weight')
+      setWeightFocusNonce((n) => n + 1)
       return
     }
     lastClickSecond.current = null
@@ -238,36 +231,6 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     }
     dispatch({ type: 'log', now: Date.now(), settings, logId, durSec })
     if (isTimed) setHold(null)
-  }
-
-  const keypadCurrent = !keypad || !cur
-    ? ''
-    : keypad.field === 'weight'
-      ? cur.weight === null
-        ? ''
-        : String(cur.weight)
-      : String(cur.reps)
-
-  const onKeypadKey = (k: string) => {
-    setKeypad((kp) => {
-      if (!kp) return kp
-      let v = kp.value
-      if (k === '⌫') v = v.slice(0, -1)
-      else if (k === '.') {
-        if (!v.includes('.')) v = (v || '0') + '.'
-      } else if (v.length < 6) v = v + k
-      return { ...kp, value: v }
-    })
-  }
-
-  const onKeypadDone = () => {
-    if (keypad) {
-      const num = parseFloat(keypad.value)
-      if (!Number.isNaN(num)) {
-        dispatch(keypad.field === 'weight' ? { type: 'typeWeight', value: num } : { type: 'typeReps', value: num })
-      }
-    }
-    setKeypad(null)
   }
 
   const applySwapPick = (item: DbExercise, alsoRoutine: boolean) => {
@@ -364,9 +327,11 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
           onStepWeight={stepWeight}
           onHoldStart={holdStart}
           onHoldEnd={holdEnd}
-          onWeightTap={() => openKeypad('weight')}
+          onTypeWeight={(value) => dispatch({ type: 'typeWeight', value })}
           onStepReps={(dir) => dispatch({ type: 'stepReps', dir })}
-          onRepsTap={() => openKeypad('reps')}
+          onTypeReps={(value) => dispatch({ type: 'typeReps', value })}
+          onEditingChange={setNumEditing}
+          weightFocusNonce={weightFocusNonce}
           onSelectRir={(value) => dispatch({ type: 'selectRir', value })}
           onStepMetric={(key, dir) => dispatch({ type: 'stepMetric', key, dir })}
           onDismissPlateau={() => dispatch({ type: 'dismissPlateau', exIdx: e })}
@@ -437,7 +402,7 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     !state.finished &&
     !state.resting &&
     !picker &&
-    !keypad &&
+    !numEditing &&
     !reorderOpen &&
     !finishConfirmOpen &&
     addSetConfirm === null &&
@@ -618,17 +583,6 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
             lastClickSecond.current = null
             dispatch({ type: 'restEnd' })
           }}
-        />
-      )}
-
-      {keypad && (
-        <KeypadSheet
-          title={keypad.field === 'weight' ? 'Weight · kg' : 'Reps'}
-          display={keypad.value || keypadCurrent || '0'}
-          dimmed={!keypad.value}
-          onKey={onKeypadKey}
-          onDone={onKeypadDone}
-          onCancel={() => setKeypad(null)}
         />
       )}
 

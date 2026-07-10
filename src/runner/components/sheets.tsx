@@ -4,50 +4,6 @@ import { fmtStep } from '../../lib/format'
 import type { SessionState } from '../types'
 import { AccentButton, OutlineButton, Sheet } from './ui'
 
-const KEYPAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'] as const
-
-export function KeypadSheet({
-  title,
-  display,
-  dimmed,
-  onKey,
-  onDone,
-  onCancel,
-}: {
-  title: string
-  display: string
-  dimmed: boolean
-  onKey: (k: string) => void
-  onDone: () => void
-  onCancel: () => void
-}) {
-  return (
-    <Sheet onClose={onCancel} z={50}>
-      <div className="flex items-baseline justify-between pb-[14px]">
-        <div className="text-[11px] tracking-[0.16em] text-mut uppercase">{title}</div>
-        <div
-          className="text-[40px] leading-none font-extrabold tabular-nums"
-          style={{ color: dimmed ? 'var(--dim)' : 'var(--acc)' }}
-        >
-          {display}
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {KEYPAD_KEYS.map((k) => (
-          <button
-            key={k}
-            onClick={() => onKey(k)}
-            className="flex h-[54px] cursor-pointer items-center justify-center rounded-rs border border-stepbd bg-stepbg font-mono text-[20px] font-bold text-tx"
-          >
-            {k}
-          </button>
-        ))}
-      </div>
-      <AccentButton label="Done" onClick={onDone} className="mt-[10px] text-[15px]" />
-    </Sheet>
-  )
-}
-
 const STEP_OPTIONS = [0.5, 1, 1.25, 2.5, 5]
 
 export function StepChooserSheet({

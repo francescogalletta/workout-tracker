@@ -73,6 +73,7 @@ describe('Exercises', () => {
     const html = renderToString(<Exercises />)
     expect(html).toContain('Exercises')
     expect(html).toContain('Search exercises')
+    expect(html).toContain('type="search"') // native search keyboard on mobile
     expect(html).toContain('+ Create custom exercise')
     // Row management controls are present (aria-labels on the icon buttons).
     expect(html).toContain('aria-label="Rename"')

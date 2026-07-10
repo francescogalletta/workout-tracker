@@ -51,10 +51,12 @@ export function Exercises() {
         </div>
 
         <input
+          type="search"
+          enterKeyHint="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search exercises"
-          className="box-border h-12 w-full rounded-rs border border-stepbd bg-stepbg px-[14px] font-mono text-[14px] text-tx outline-none"
+          className="box-border h-12 w-full rounded-rs border border-stepbd bg-stepbg px-[14px] font-mono text-[16px] text-tx outline-none"
         />
         <HairlineLabel label="Muscle group" />
         <div className="flex flex-wrap gap-[6px]">
@@ -144,11 +146,12 @@ function RenameSheet({ exercise, onClose }: { exercise: Exercise; onClose: () =>
           Rename exercise
         </div>
         <input
+          enterKeyHint="done"
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={MAX_EXERCISE_NAME_LEN}
           autoFocus
-          className="box-border h-12 w-full rounded-rs border border-stepbd bg-stepbg px-[14px] font-mono text-[15px] text-tx outline-none"
+          className="box-border h-12 w-full rounded-rs border border-stepbd bg-stepbg px-[14px] font-mono text-[16px] text-tx outline-none"
         />
         <div className="text-[10px] tracking-[0.04em] text-dim uppercase">
           Type stays {exerciseType(exercise)} · past history keeps its old name

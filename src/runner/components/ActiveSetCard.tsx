@@ -1,4 +1,4 @@
-import type { Ref } from 'react'
+import { useEffect, useRef, useState, type Ref } from 'react'
 import { fmtDur, fmtMetric, fmtStep, fmtW } from '../../lib/format'
 import { typeOf } from '../session'
 import type { SessionExercise, SetEntry } from '../types'
@@ -15,9 +15,13 @@ export interface ActiveSetCardProps {
   onStepWeight: (dir: 1 | -1) => void
   onHoldStart: () => void
   onHoldEnd: () => void
-  onWeightTap: () => void
+  onTypeWeight: (value: number) => void
   onStepReps: (dir: 1 | -1) => void
-  onRepsTap: () => void
+  onTypeReps: (value: number) => void
+  /** True while a native numeric input is focused — Runner hides the log bar. */
+  onEditingChange?: (editing: boolean) => void
+  /** Increment to focus the weight field (log-without-weight flow). */
+  weightFocusNonce?: number
   onSelectRir: (v: number) => void
   onStepMetric: (key: string, dir: 1 | -1) => void
   onDismissPlateau: () => void
@@ -56,18 +60,17 @@ export function ActiveSetCard(p: ActiveSetCardProps) {
                   onPointerUp={p.onHoldEnd}
                   onPointerLeave={p.onHoldEnd}
                 />
-                <button
-                  onClick={p.onWeightTap}
-                  className="flex cursor-pointer flex-col items-center border-0 bg-transparent p-0 font-mono"
-                >
-                  <div
-                    className="border-b-2 border-dotted border-dim pb-1 text-[52px] leading-none font-extrabold tabular-nums"
-                    style={{ color: entry.weight === null ? 'var(--dim)' : 'var(--numc)' }}
-                  >
-                    {fmtW(entry.weight)}
-                  </div>
-                  <div className="mt-[5px] text-[10px] tracking-[0.14em] text-mut uppercase">kg</div>
-                </button>
+                <NumberField
+                  value={entry.weight}
+                  display={fmtW(entry.weight)}
+                  unit="kg"
+                  fontSize={52}
+                  inputMode="decimal"
+                  dimmed={entry.weight === null}
+                  focusNonce={p.weightFocusNonce}
+                  onCommit={p.onTypeWeight}
+                  onEditingChange={p.onEditingChange}
+                />
                 <StepButton
                   label={`+${fmtStep(p.step)}`}
                   onClick={() => p.onStepWeight(1)}
@@ -140,15 +143,15 @@ export function ActiveSetCard(p: ActiveSetCardProps) {
               {/* reps */}
               <div className="flex items-center justify-between gap-[10px]">
                 <StepButton label="−" fontSize={22} onClick={() => p.onStepReps(-1)} />
-                <button
-                  onClick={p.onRepsTap}
-                  className="flex cursor-pointer flex-col items-center border-0 bg-transparent p-0 font-mono"
-                >
-                  <div className="border-b-2 border-dotted border-dim pb-1 text-[38px] leading-none font-extrabold text-numc tabular-nums">
-                    {entry.reps}
-                  </div>
-                  <div className="mt-[5px] text-[10px] tracking-[0.14em] text-mut uppercase">reps</div>
-                </button>
+                <NumberField
+                  value={entry.reps}
+                  display={String(entry.reps)}
+                  unit="reps"
+                  fontSize={38}
+                  inputMode="numeric"
+                  onCommit={p.onTypeReps}
+                  onEditingChange={p.onEditingChange}
+                />
                 <StepButton label="+" fontSize={22} onClick={() => p.onStepReps(1)} />
               </div>
             </>
@@ -158,15 +161,15 @@ export function ActiveSetCard(p: ActiveSetCardProps) {
             /* big reps numeral — no weight stepper, no reco panel, no plateau hint */
             <div className="flex items-center justify-between gap-[10px]">
               <StepButton label="−" fontSize={22} onClick={() => p.onStepReps(-1)} />
-              <button
-                onClick={p.onRepsTap}
-                className="flex cursor-pointer flex-col items-center border-0 bg-transparent p-0 font-mono"
-              >
-                <div className="border-b-2 border-dotted border-dim pb-1 text-[52px] leading-none font-extrabold text-numc tabular-nums">
-                  {entry.reps}
-                </div>
-                <div className="mt-[5px] text-[10px] tracking-[0.14em] text-mut uppercase">reps</div>
-              </button>
+              <NumberField
+                value={entry.reps}
+                display={String(entry.reps)}
+                unit="reps"
+                fontSize={52}
+                inputMode="numeric"
+                onCommit={p.onTypeReps}
+                onEditingChange={p.onEditingChange}
+              />
               <StepButton label="+" fontSize={22} onClick={() => p.onStepReps(1)} />
             </div>
           )}
@@ -212,6 +215,103 @@ export function ActiveSetCard(p: ActiveSetCardProps) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * The big tappable numeral. Idle it renders the styled display value; tapping
+ * swaps in a native input styled identically (`inputMode` picks the phone's
+ * decimal/number pad; the font is far past iOS's 16px zoom floor). Selects all
+ * on focus, commits on blur/Done, reverts on unparsable input — the reducer
+ * clamps ranges. `focusNonce` lets Runner focus the weight field when Log is
+ * hit without a weight.
+ */
+function NumberField({
+  value,
+  display,
+  unit,
+  fontSize,
+  inputMode,
+  dimmed = false,
+  focusNonce = 0,
+  onCommit,
+  onEditingChange,
+}: {
+  value: number | null
+  display: string
+  unit: string
+  fontSize: number
+  inputMode: 'decimal' | 'numeric'
+  dimmed?: boolean
+  focusNonce?: number
+  onCommit: (v: number) => void
+  onEditingChange?: (editing: boolean) => void
+}) {
+  const [text, setText] = useState<string | null>(null)
+  const seenNonce = useRef(focusNonce)
+
+  const begin = () => {
+    setText(value === null ? '' : String(value))
+    onEditingChange?.(true)
+  }
+
+  useEffect(() => {
+    if (focusNonce !== seenNonce.current) {
+      seenNonce.current = focusNonce
+      begin()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusNonce])
+
+  const commit = () => {
+    if (text !== null) {
+      const num = parseFloat(text.replace(',', '.'))
+      if (!Number.isNaN(num)) onCommit(num)
+    }
+    setText(null)
+    onEditingChange?.(false)
+  }
+
+  if (text === null) {
+    return (
+      <button
+        onClick={begin}
+        className="flex cursor-pointer flex-col items-center border-0 bg-transparent p-0 font-mono"
+      >
+        <div
+          className="border-b-2 border-dotted border-dim pb-1 leading-none font-extrabold tabular-nums"
+          style={{ fontSize, color: dimmed ? 'var(--dim)' : 'var(--numc)' }}
+        >
+          {display}
+        </div>
+        <div className="mt-[5px] text-[10px] tracking-[0.14em] text-mut uppercase">{unit}</div>
+      </button>
+    )
+  }
+  return (
+    <div className="flex flex-col items-center font-mono">
+      <input
+        autoFocus
+        type="text"
+        inputMode={inputMode}
+        enterKeyHint="done"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onFocus={(e) => {
+          e.target.select()
+          const el = e.target
+          // After the keyboard animates in, keep the field visible above it.
+          requestAnimationFrame(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }))
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+        }}
+        className="w-[4ch] border-0 border-b-2 border-dotted border-acc bg-transparent p-0 pb-1 text-center leading-none font-extrabold text-numc tabular-nums outline-none"
+        style={{ fontSize }}
+      />
+      <div className="mt-[5px] text-[10px] tracking-[0.14em] text-mut uppercase">{unit}</div>
     </div>
   )
 }
