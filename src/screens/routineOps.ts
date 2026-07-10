@@ -147,6 +147,14 @@ export function exerciseCountLabel(n: number): string {
 }
 
 /**
+ * "3 routines" / "1 workout" count label. Pass `pluralWord` for irregular
+ * plurals (e.g. `plural(n, 'entry', 'entries')`); defaults to `word + 's'`.
+ */
+export function plural(n: number, word: string, pluralWord = `${word}s`): string {
+  return `${n} ${n === 1 ? word : pluralWord}`
+}
+
+/**
  * Routines row sub-line: "N exercises · last Sun" (or "· never done"), with an
  * "up next · " prefix when this routine is the rotation suggestion.
  */

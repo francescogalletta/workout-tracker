@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   FINE_HOLD_MS,
+  FINE_SLOW_SUSTAIN_MS,
   REST_MAX,
   REST_MIN,
   REST_TICKS,
@@ -8,6 +9,7 @@ import {
   isFineDrag,
   posToSec,
   secToFrac,
+  slowStreak,
   snapRest,
 } from './restSliderMath'
 
@@ -69,6 +71,23 @@ describe('isFineDrag', () => {
   it('press-holding before moving is fine regardless of velocity', () => {
     expect(isFineDrag(2, FINE_HOLD_MS)).toBe(true)
     expect(isFineDrag(2, FINE_HOLD_MS - 1)).toBe(false)
+  })
+})
+
+describe('slowStreak', () => {
+  it('accumulates dt while movement stays slow', () => {
+    let s = 0
+    s = slowStreak(s, 60, 0.1)
+    s = slowStreak(s, 60, 0.1)
+    expect(s).toBe(120)
+    expect(s).toBeGreaterThanOrEqual(FINE_SLOW_SUSTAIN_MS - 60)
+  })
+
+  it('resets to 0 on any fast sample (no fine mode from a lone decel sample)', () => {
+    let s = slowStreak(140, 60, 0.1) // 200, would arm
+    expect(s).toBeGreaterThanOrEqual(FINE_SLOW_SUSTAIN_MS)
+    s = slowStreak(200, 16, 0.9) // fast flick mid-sweep
+    expect(s).toBe(0)
   })
 })
 

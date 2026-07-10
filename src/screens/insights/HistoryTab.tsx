@@ -4,7 +4,8 @@ import type { Db, Session, SetLog } from '../../data/types'
 import { exerciseType } from '../../data/types'
 import { fmtKg } from '../../engine/round'
 import { fmtDur } from '../../lib/format'
-import { EmptyState, SheetRule } from './bits'
+import { HairlineLabel } from '../../runner/components/ui'
+import { EmptyState } from './bits'
 import {
   exerciseSummaryLine,
   filterDisplayLabel,
@@ -308,7 +309,7 @@ export function FilterSheet({
       >
         <div className="text-[11px] tracking-[0.16em] text-mut uppercase">Filter log</div>
 
-        <SheetRule label="Muscle group" />
+        <HairlineLabel label="Muscle group" />
         <div className="flex flex-wrap gap-[6px]">
           {groups.map((g) => {
             const sel = !!filter && filter.type === 'group' && filter.value === g
@@ -326,7 +327,7 @@ export function FilterSheet({
           })}
         </div>
 
-        <SheetRule label="Exercise" />
+        <HairlineLabel label="Exercise" />
         <div className="flex flex-col gap-2">
           {exercises.map((e) => {
             const sel = !!filter && filter.type === 'exercise' && filter.value === e.id

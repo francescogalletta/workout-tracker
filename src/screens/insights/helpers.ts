@@ -2,6 +2,10 @@ import { exerciseById, historyFor, type LogFilter } from '../../data/queries'
 import type { Db, Exercise, InsightTarget, Session, SetLog } from '../../data/types'
 import { effectiveRIR, newId } from '../../data/types'
 import { fmtKg } from '../../engine/round'
+import { GROUP_ORDER, WEEK_MS, targetWeeksLeft } from '../../lib/constants'
+
+/** Re-exported for the Insights tabs (single source lives in lib/constants). */
+export { targetWeeksLeft }
 
 /**
  * Pure helpers for the Insights screen (exported for unit tests). All rules
@@ -9,11 +13,8 @@ import { fmtKg } from '../../engine/round'
  * presents them and writes the accepted/removed target rows.
  */
 
-const WEEK_MS = 7 * 24 * 3600 * 1000
 /** Accepted targets live 4 weeks (HANDOFF §4). */
 export const TARGET_WEEKS = 4
-/** Canonical muscle-group display order (mirrors the engine's). */
-const GROUP_ORDER = ['chest', 'back', 'shoulders', 'arms', 'legs', 'core']
 
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -145,9 +146,4 @@ export function buildInsightTarget(
     createdAt: now,
     expiresAt: now + TARGET_WEEKS * WEEK_MS,
   }
-}
-
-/** Whole weeks until a target expires (0 once past). */
-export function targetWeeksLeft(expiresAt: number, now: number): number {
-  return Math.max(0, Math.ceil((expiresAt - now) / WEEK_MS))
 }

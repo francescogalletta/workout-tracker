@@ -8,6 +8,7 @@ import { useLongPress } from '../lib/useLongPress'
 import { CreateExercise, PICKER_GROUPS } from '../runner/components/ExercisePicker'
 import { TypeBadge } from '../runner/components/TypeBadge'
 import { AccentButton, Chip, HairlineLabel, OutlineButton, Sheet } from '../runner/components/ui'
+import { exerciseCountLabel, plural } from './routineOps'
 
 /**
  * Exercises library (owner decision — the one place to manage the exercise
@@ -51,11 +52,6 @@ export function Exercises() {
     setSelected(null)
   }
 
-  // "Used in N routines" aggregated across the checked exercises.
-  const usedEntries = selected
-    ? [...selected].reduce((a, id) => a + routinesUsingExercise(db, id).length, 0)
-    : 0
-
   if (creating) {
     return (
       <CreateExercise
@@ -97,7 +93,17 @@ export function Exercises() {
               </div>
             </>
           ) : (
-            <div className="tt-label text-[17px] font-bold tracking-[0.05em] text-tx">Exercises</div>
+            <>
+              <div className="tt-label text-[17px] font-bold tracking-[0.05em] text-tx">Exercises</div>
+              {list.length > 0 && (
+                <button
+                  onClick={() => setSelected(new Set())}
+                  className="tt-label m-[-10px] cursor-pointer border-0 bg-transparent p-[10px] font-mono text-[12px] tracking-[0.08em] text-mut underline underline-offset-[3px]"
+                >
+                  Select
+                </button>
+              )}
+            </>
           )}
         </div>
 
@@ -130,7 +136,9 @@ export function Exercises() {
             />
           ))}
           {list.length === 0 && (
-            <div className="py-6 text-center text-[12px] text-dim">No matches</div>
+            <div className="py-6 text-center text-[12px] text-dim">
+              {db.exercises.length === 0 ? 'No exercises yet — create your first below' : 'No matches'}
+            </div>
           )}
           {list.length > 0 && (
             <div className="pt-1 text-center text-[10px] tracking-[0.06em] text-dim uppercase">
@@ -151,18 +159,7 @@ export function Exercises() {
         <RenameSheet exercise={renaming} onClose={() => setRenaming(null)} />
       )}
       {confirmDelete && selected && (
-        <ConfirmSheet
-          title={`Delete ${selected.size} ${selected.size === 1 ? 'exercise' : 'exercises'}?`}
-          body={`${
-            usedEntries === 0
-              ? 'Not used in any routine.'
-              : `Used in ${usedEntries} routine ${usedEntries === 1 ? 'entry' : 'entries'} — those will be removed.`
-          } Past workout history is kept.`}
-          confirmLabel="Delete"
-          cancelLabel="Keep"
-          onConfirm={deleteSelected}
-          onCancel={() => setConfirmDelete(false)}
-        />
+        <DeleteConfirm selected={selected} onConfirm={deleteSelected} onCancel={() => setConfirmDelete(false)} />
       )}
     </div>
   )
@@ -191,6 +188,13 @@ function ExerciseRow({
   return (
     <button
       {...handlers}
+      // In select mode the row is a checkbox (Enter/Space toggle it, VoiceOver
+      // reads the checked state); otherwise a plain rename button. `Select` in
+      // the header is the keyboard/AT path into select mode (long-press is the
+      // pointer path), so delete is reachable without a gesture.
+      role={selecting ? 'checkbox' : undefined}
+      aria-checked={selecting ? checked : undefined}
+      aria-label={selecting ? ex.name : `Rename ${ex.name}`}
       onClick={() => {
         if (firedRef.current) return
         onTap()
@@ -221,6 +225,38 @@ function ExerciseRow({
         </div>
       </div>
     </button>
+  )
+}
+
+/**
+ * Delete-confirm sheet. Computing "used in N routines" only here (not every
+ * Exercises render) keeps the aggregate off the hot render path — it is read
+ * nowhere else.
+ */
+function DeleteConfirm({
+  selected,
+  onConfirm,
+  onCancel,
+}: {
+  selected: Set<string>
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const db = useDb()
+  const usedEntries = [...selected].reduce((a, id) => a + routinesUsingExercise(db, id).length, 0)
+  return (
+    <ConfirmSheet
+      title={`Delete ${exerciseCountLabel(selected.size)}?`}
+      body={`${
+        usedEntries === 0
+          ? 'Not used in any routine.'
+          : `Used in ${plural(usedEntries, 'routine entry', 'routine entries')} — those will be removed.`
+      } Past workout history is kept.`}
+      confirmLabel="Delete"
+      cancelLabel="Keep"
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
   )
 }
 

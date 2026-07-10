@@ -3,7 +3,8 @@ import { update } from '../../data/store'
 import type { Db } from '../../data/types'
 import { BALANCE_BAND, muscleBalance, suggestedAdjustments, type Adjustment } from '../../engine/insights'
 import { fmtKg } from '../../engine/round'
-import { EmptyState, SheetRule } from './bits'
+import { HairlineLabel } from '../../runner/components/ui'
+import { EmptyState } from './bits'
 import { buildInsightTarget, targetNote, targetWeeksLeft } from './helpers'
 
 const WINDOWS = [2, 4, 6, 8] as const
@@ -80,7 +81,7 @@ export function PlanTab({
       </div>
 
       {/* active targets */}
-      <SheetRule label="Active targets" />
+      <HairlineLabel label="Active targets" />
       {targets.length === 0 ? (
         <div className="py-2 text-center text-[11px] text-dim">
           No active targets — accept a suggestion below
@@ -117,7 +118,7 @@ export function PlanTab({
       )}
 
       {/* suggestions */}
-      <SheetRule label="Suggested adjustments" />
+      <HairlineLabel label="Suggested adjustments" />
       {suggestions.length === 0 ? (
         <div className="py-6 text-center text-[12px] text-dim">
           No adjustments suggested — current targets look right
@@ -127,7 +128,7 @@ export function PlanTab({
       )}
 
       {/* muscle balance */}
-      <SheetRule label="Muscle balance · sets per week" />
+      <HairlineLabel label="Muscle balance · sets per week" />
       <div className="flex flex-col gap-[6px]">
         {balance.map((b) => {
           const low = b.status === 'low'

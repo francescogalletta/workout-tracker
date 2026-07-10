@@ -11,8 +11,16 @@ export const REST_FINE_STEP = 5
 
 /** Drag slower than this (px/ms) counts as a deliberate fine adjustment. */
 export const FINE_VELOCITY_PX_MS = 0.25
+/** A flick faster than this (px/ms) leaves fine mode (long coarse sweeps stay coarse). */
+export const FINE_RESET_PX_MS = 1
 /** Press-holding this long before moving also enters fine mode. */
 export const FINE_HOLD_MS = 400
+/**
+ * Slow movement must persist this long (ms) before fine mode arms. A single
+ * slow sample at end-of-sweep deceleration is not enough — otherwise ordinary
+ * fast coarse drags snap to 5s detents on release.
+ */
+export const FINE_SLOW_SUSTAIN_MS = 150
 
 export function clampRest(sec: number): number {
   return Math.max(REST_MIN, Math.min(REST_MAX, sec))
@@ -39,6 +47,15 @@ export function secToFrac(sec: number): number {
 /** Fine mode: press-held before moving, or currently dragging slowly. */
 export function isFineDrag(velocityPxPerMs: number, heldBeforeMoveMs: number): boolean {
   return heldBeforeMoveMs >= FINE_HOLD_MS || Math.abs(velocityPxPerMs) <= FINE_VELOCITY_PX_MS
+}
+
+/**
+ * Cumulative time spent moving slowly. A slow sample extends the streak by
+ * `dt`; any non-slow sample resets it to 0. Fine mode arms once the streak
+ * reaches `FINE_SLOW_SUSTAIN_MS`.
+ */
+export function slowStreak(prevSlowMs: number, dt: number, velocityPxPerMs: number): number {
+  return Math.abs(velocityPxPerMs) <= FINE_VELOCITY_PX_MS ? prevSlowMs + dt : 0
 }
 
 /** The coarse detent seconds (tick marks): 30, 60, …, 180. */

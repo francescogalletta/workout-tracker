@@ -37,13 +37,27 @@ export function useDragReorder(
   onDragStart?: () => void,
 ) {
   const [drag, setDrag] = useState<DragState | null>(null)
-  const info = useRef<{ from: number; startY: number; rowH: number; lastDy: number } | null>(null)
+  const info = useRef<{
+    from: number
+    to: number
+    startY: number
+    rowH: number
+    lastDy: number
+    el: HTMLElement | null
+  } | null>(null)
 
-  const end = () => {
+  const clearRow = () => {
+    const el = info.current?.el
+    if (el) el.style.transform = ''
+  }
+
+  const finish = (commit: boolean) => {
     const i = info.current
+    clearRow()
     info.current = null
     setDrag(null)
     if (!i) return
+    if (!commit) return
     const to = dragTargetIndex(i.from, i.lastDy, i.rowH, count)
     if (to !== i.from) onCommit(i.from, to)
   }
@@ -51,11 +65,11 @@ export function useDragReorder(
   const handleProps = (index: number) => ({
     style: { touchAction: 'none' } as CSSProperties,
     onPointerDown: (e: ReactPointerEvent) => {
-      const row = (e.currentTarget as HTMLElement).closest('[data-drag-row]')
+      const row = (e.currentTarget as HTMLElement).closest('[data-drag-row]') as HTMLElement | null
       const gap = 8 // list gap-2
       const rowH = row ? row.getBoundingClientRect().height + gap : 74
       e.currentTarget.setPointerCapture(e.pointerId)
-      info.current = { from: index, startY: e.clientY, rowH, lastDy: 0 }
+      info.current = { from: index, to: index, startY: e.clientY, rowH, lastDy: 0, el: row }
       onDragStart?.()
       setDrag({ from: index, to: index, dy: 0 })
     },
@@ -63,23 +77,33 @@ export function useDragReorder(
       const i = info.current
       if (!i) return
       i.lastDy = e.clientY - i.startY
-      setDrag({ from: i.from, to: dragTargetIndex(i.from, i.lastDy, i.rowH, count), dy: i.lastDy })
+      // Dragged row follows the pointer imperatively — no re-render per pixel.
+      if (i.el) i.el.style.transform = `translateY(${i.lastDy}px) scale(1.02)`
+      const to = dragTargetIndex(i.from, i.lastDy, i.rowH, count)
+      // Neighbors only shift when the target row changes (a boundary crossing),
+      // so the whole editor re-renders a handful of times, not per event.
+      if (to !== i.to) {
+        i.to = to
+        setDrag({ from: i.from, to, dy: i.lastDy })
+      }
     },
-    onPointerUp: end,
-    onPointerCancel: end,
+    onPointerUp: () => finish(true),
+    // An OS-cancelled gesture (notification shade, app switch, palm rejection)
+    // discards the in-flight reorder instead of committing it.
+    onPointerCancel: () => finish(false),
   })
 
-  /** Row transform: dragged row follows the pointer, neighbors slide aside. */
+  /**
+   * Row transform for the *neighbors* (they slide aside on boundary crossings).
+   * The dragged row's transform is written imperatively during the drag, so its
+   * style here carries only stacking — never a transform React would clobber.
+   */
   const rowStyle = (index: number): CSSProperties => {
     if (!drag) return {}
     const i = info.current
     const rowH = i?.rowH ?? 74
     if (index === drag.from) {
-      return {
-        transform: `translateY(${drag.dy}px) scale(1.02)`,
-        zIndex: 10,
-        position: 'relative',
-      }
+      return { zIndex: 10, position: 'relative' }
     }
     let shift = 0
     if (drag.from < drag.to && index > drag.from && index <= drag.to) shift = -rowH

@@ -7,6 +7,7 @@ import { isIOS, previewCue } from '../lib/audio'
 import { retrySync, signOut, type SyncStatus, useDb, useSyncStatus } from '../data/store'
 import type { AppSettings } from '../data/types'
 import { navigate } from '../router'
+import { plural } from './routineOps'
 
 /**
  * Settings — recreated from design/prototypes/Settings.dc.html.
@@ -30,11 +31,6 @@ export type SyncState = 'unavailable' | 'off' | 'on'
 export function syncState(syncAvailable: boolean, email: string | null): SyncState {
   if (!syncAvailable) return 'unavailable'
   return email != null ? 'on' : 'off'
-}
-
-/** "3 routines" / "1 workout" pluralization for the count line. */
-function plural(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? '' : 's'}`
 }
 
 /** Row card wrapper (filled-surface in Ember, hairline outline in Volt). */

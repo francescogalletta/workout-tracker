@@ -1,13 +1,12 @@
-import { useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { addSetLog, finishSession, updateRoutineItemExercise } from '../data/mutations'
 import { getDb, useDb } from '../data/store'
 import type { Session } from '../data/types'
 import { newId } from '../data/types'
 import { ensureAudio, restClick, restDone } from '../lib/audio'
 import { fmtClock, fmtDur, fmtMetricLine, fmtW } from '../lib/format'
-import { useTilt } from '../lib/useTilt'
 import { useWakeLock } from '../lib/useWakeLock'
-import { ActiveSetCard } from './components/ActiveSetCard'
+import { ActiveSetCard, type ActiveSetCardHandle } from './components/ActiveSetCard'
 import { ExercisePicker, filterDb, type PickerFilter } from './components/ExercisePicker'
 import { RestOverlay } from './components/RestOverlay'
 import {
@@ -71,15 +70,30 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
   const [now, setNow] = useState(() => Date.now())
 
   // Native numeric entry (weight/reps): the log bar hides while a field is
-  // focused so it never floats above the keyboard; the nonce focuses the
-  // weight field when Log is hit without a weight.
+  // focused so it never floats above the keyboard; an imperative handle
+  // (activeCardHandle) raises the weight field when Log is hit without a weight.
+  //
+  // A begin/end *counter* (not a boolean) survives out-of-order focus events:
+  // switching weight → reps fires the new field's begin before the old field's
+  // late blur, so a last-writer-wins boolean would leave the bar showing over
+  // the open keyboard. editing = count > 0.
+  const editCount = useRef(0)
   const [numEditing, setNumEditing] = useState(false)
-  const [weightFocusNonce, setWeightFocusNonce] = useState(0)
+  const onEditingChange = useCallback((editing: boolean) => {
+    editCount.current = Math.max(0, editCount.current + (editing ? 1 : -1))
+    setNumEditing(editCount.current > 0)
+  }, [])
+  // Imperative handle to the active card so logActive can focus the weight
+  // field synchronously inside its own tap gesture (see ActiveSetCardHandle).
+  const activeCardHandle = useRef<ActiveSetCardHandle>(null)
   const [picker, setPicker] = useState<PickerFilter | null>(null)
   const [swapConfirm, setSwapConfirm] = useState<DbExercise | null>(null)
   const [reorderOpen, setReorderOpen] = useState(false)
   const [finishConfirmOpen, setFinishConfirmOpen] = useState(false)
-  const [addSetConfirm, setAddSetConfirm] = useState<number | null>(null)
+  // Holds the exercise object, not an array index — reorder keeps the same
+  // references (so indexOf re-finds it), and a swap replaces the object (so
+  // indexOf returns -1 and the stale +1 is safely dropped).
+  const [addSetConfirm, setAddSetConfirm] = useState<SessionExercise | null>(null)
   const [stepOverride, setStepOverride] = useState<number | null>(null)
   const [stepChooserOpen, setStepChooserOpen] = useState(false)
   const [restSheetOpen, setRestSheetOpen] = useState(false)
@@ -90,15 +104,24 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
   const lastClickSecond = useRef<number | null>(null)
   const activeCardEl = useRef<HTMLDivElement | null>(null)
 
+  // Stable ref callback: the active card remounts per set, but this closure
+  // must not — an inline one re-runs its cleanup/attach on every 250ms tick.
+  const cardRef = useCallback((el: HTMLDivElement | null) => {
+    activeCardEl.current = el
+    // React 19 ref cleanup: clear the ref when the active card unmounts so the
+    // auto-scroll effect never reads a detached node between one active card
+    // unmounting and the next mounting.
+    return () => {
+      if (activeCardEl.current === el) activeCardEl.current = null
+    }
+  }, [])
+
   const step = stepOverride ?? settings.weightIncrementKg
   const ptr = state.ptr
   const cur: SetEntry | undefined = state.sets[ptr.e]?.[ptr.s]
   const curEx: SessionExercise | undefined = state.exercises[ptr.e]
 
   useWakeLock(!state.finished)
-  // Subtle device-tilt parallax on the active set card (echoes the Home
-  // wordmark's motion feel). Reads `activeCardEl`, remounted per active set.
-  useTilt(activeCardEl)
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 250)
@@ -193,7 +216,7 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     if (!cur || !curEx) return
     const curType = typeOf(curEx)
     if (curEx.kind === 'strength' && curType === 'weight' && cur.weight === null) {
-      setWeightFocusNonce((n) => n + 1)
+      activeCardHandle.current?.focusWeight()
       return
     }
     lastClickSecond.current = null
@@ -311,27 +334,20 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
       return (
         <ActiveSetCard
           key={s}
+          ref={activeCardHandle}
           exercise={ex}
           exIdx={e}
           entry={sd}
           setLabel={setLabel}
           step={step}
-          cardRef={(el) => {
-            activeCardEl.current = el
-            // React 19 ref cleanup: stop the tilt loop writing to a detached
-            // node between one active card unmounting and the next mounting.
-            return () => {
-              if (activeCardEl.current === el) activeCardEl.current = null
-            }
-          }}
+          cardRef={cardRef}
           onStepWeight={stepWeight}
           onHoldStart={holdStart}
           onHoldEnd={holdEnd}
           onTypeWeight={(value) => dispatch({ type: 'typeWeight', value })}
           onStepReps={(dir) => dispatch({ type: 'stepReps', dir })}
           onTypeReps={(value) => dispatch({ type: 'typeReps', value })}
-          onEditingChange={setNumEditing}
-          weightFocusNonce={weightFocusNonce}
+          onEditingChange={onEditingChange}
           onSelectRir={(value) => dispatch({ type: 'selectRir', value })}
           onStepMetric={(key, dir) => dispatch({ type: 'stepMetric', key, dir })}
           onDismissPlateau={() => dispatch({ type: 'dismissPlateau', exIdx: e })}
@@ -405,7 +421,7 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
     !numEditing &&
     !reorderOpen &&
     !finishConfirmOpen &&
-    addSetConfirm === null &&
+    !addSetConfirm &&
     !restSheetOpen &&
     !!cur &&
     !cur.logged
@@ -510,7 +526,7 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
               state.exercises[sec.exIdx].kind !== 'cardio' &&
               !state.finished && (
                 <button
-                  onClick={() => setAddSetConfirm(sec.exIdx)}
+                  onClick={() => setAddSetConfirm(state.exercises[sec.exIdx!])}
                   className="cursor-pointer self-start border-0 bg-transparent p-[4px_2px] font-mono text-[11px] tracking-[0.08em] text-dim uppercase underline underline-offset-[3px]"
                 >
                   +1 set
@@ -551,14 +567,15 @@ export function Runner({ session, onDone }: { session: Session; onDone: () => vo
         </div>
       )}
 
-      {addSetConfirm !== null && (
+      {addSetConfirm && (
         <ConfirmSheet
           title="Feeling stronger?"
-          body={`One more set of ${state.exercises[addSetConfirm].name}?`}
+          body={`One more set of ${addSetConfirm.name}?`}
           confirmLabel="+1 set"
           cancelLabel="Not today"
           onConfirm={() => {
-            dispatch({ type: 'addSet', exIdx: addSetConfirm })
+            const exIdx = state.exercises.indexOf(addSetConfirm)
+            if (exIdx !== -1) dispatch({ type: 'addSet', exIdx })
             setAddSetConfirm(null)
           }}
           onCancel={() => setAddSetConfirm(null)}

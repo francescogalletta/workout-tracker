@@ -10,6 +10,12 @@ import type {
   Settings,
 } from './types'
 
+/** Clamp to [lo, hi]; non-finite input (NaN/Infinity) falls back to `lo`. */
+function clampNum(v: number, lo: number, hi: number): number {
+  if (!Number.isFinite(v)) return lo
+  return Math.max(lo, Math.min(hi, v))
+}
+
 /** Logging type of a session exercise (legacy/cardio rows default to weight). */
 export function typeOf(ex: { type?: ExerciseType }): ExerciseType {
   return ex.type ?? 'weight'
@@ -18,6 +24,9 @@ export function typeOf(ex: { type?: ExerciseType }): ExerciseType {
 const DUR_STEP = 5
 const DUR_MIN = 5
 const TIME_DEFAULT_DUR = 30
+/** Sane upper bounds for typed numeric entry (Infinity/1e30 must not persist). */
+const WEIGHT_MAX_KG = 999
+const REPS_MAX = 999
 
 /** Template for seeding a session (demo now; from routineItems + engine later). */
 export interface SessionSeed {
@@ -106,7 +115,7 @@ export function reduce(state: SessionState, action: Action): SessionState {
 
     case 'typeWeight':
       return mutPointed(state, (x) => {
-        x.weight = Math.max(0, action.value)
+        x.weight = clampNum(action.value, 0, WEIGHT_MAX_KG)
       })
 
     case 'stepReps':
@@ -116,7 +125,7 @@ export function reduce(state: SessionState, action: Action): SessionState {
 
     case 'typeReps':
       return mutPointed(state, (x) => {
-        x.reps = Math.max(1, Math.round(action.value))
+        x.reps = clampNum(Math.round(action.value), 1, REPS_MAX)
       })
 
     case 'selectRir':

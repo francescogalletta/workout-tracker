@@ -21,15 +21,6 @@ export function TabButton({
   )
 }
 
-export function SheetRule({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-[10px] pt-[2px]">
-      <div className="text-[9px] tracking-[0.2em] whitespace-nowrap text-mut uppercase">{label}</div>
-      <div className="h-px flex-1 bg-bd" />
-    </div>
-  )
-}
-
 export function EmptyState({ title, body }: { title: string; body: string }) {
   return (
     <div className="flex flex-col items-center gap-[10px] px-6 py-[90px] text-center">

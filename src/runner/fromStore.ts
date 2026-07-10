@@ -3,6 +3,7 @@ import { update } from '../data/store'
 import type { Db, Exercise, Session, SetLog } from '../data/types'
 import { detectPlateau, prescribe, type WorkingHistory } from '../engine/reco'
 import { warmupSets } from '../engine/warmup'
+import { targetWeeksLeft } from '../lib/constants'
 import { fmtDur, fmtW } from '../lib/format'
 import { TYPE_DEFAULTS, effectiveRIR } from '../data/types'
 import { createSession, nextUnlogged, type SessionSeed } from './session'
@@ -14,8 +15,6 @@ import type { DbExercise, SessionExercise, SessionState, SetEntry } from './type
  * Session rows and SetLogs are. Resuming rebuilds the in-memory state from
  * the routine + engine and replays the session's setLogs onto it.
  */
-
-const WEEK_MS = 7 * 24 * 3600 * 1000
 
 /** Store exercise → picker item (the picker DB is the store catalog now). */
 export function toPickerItem(e: Exercise): DbExercise {
@@ -189,7 +188,7 @@ export function seedsForRoutine(
           ? {
               w: targetRow.weightKg,
               sub: targetRow.note,
-              weeksLeft: Math.max(0, Math.ceil((targetRow.expiresAt - now) / WEEK_MS)),
+              weeksLeft: targetWeeksLeft(targetRow.expiresAt, now),
             }
           : null,
         plateauText: plateau,

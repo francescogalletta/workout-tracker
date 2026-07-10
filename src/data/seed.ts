@@ -125,23 +125,31 @@ export const STARTER_EXERCISES: Exercise[] = [
   ]),
 ]
 
-/** Seed the exercise catalog when the store has none (idempotent). */
+/**
+ * Seed the whole starter catalog into an empty store (idempotent). No longer on
+ * the normal boot path — new users start with an empty library and build it via
+ * `createExercise`. Retained for the `?demo` flow (`seedDemoData` calls it) and
+ * for tests.
+ */
 export function ensureCatalog(): void {
   if (getDb().exercises.length > 0) return
   update((db) => ({ ...db, exercises: STARTER_EXERCISES }))
 }
 
 /**
- * Bring an existing catalog up to the current model: backfill the `type`
- * field on legacy rows (from the starter defaults, else `weight`) and append
- * any starter exercises the store is missing (e.g. the timed core holds added
- * with the exercise-type feature). Idempotent; a no-op once migrated. Runs at
- * boot after `ensureCatalog`, so fresh stores skip it entirely.
+ * Bring an existing catalog up to the current model: backfill the `type` field
+ * on legacy rows (from the starter defaults, else `weight`). Kept because it is
+ * meaningful for SURVIVING rows — a pre-`type` timed/bodyweight exercise that a
+ * routine or logged history still references (so `cleanupSeededCatalog` keeps
+ * it) would otherwise read as `weight` through `exerciseType()` and mis-log /
+ * mis-badge; the backfill materialises the correct type. Also covers legacy
+ * custom rows created before the field existed. It NO LONGER re-appends missing
+ * starters — the whole point of the change is to stop reseeding. Idempotent; a
+ * no-op once migrated.
  */
 export function migrateCatalog(): void {
   update((db) => {
     const starterById = new Map(STARTER_EXERCISES.map((e) => [e.id, e]))
-    const haveIds = new Set(db.exercises.map((e) => e.id))
     let changed = false
 
     const exercises = db.exercises.map((e) => {
@@ -149,13 +157,39 @@ export function migrateCatalog(): void {
       changed = true
       return { ...e, type: starterById.get(e.id)?.type ?? ('weight' as const) }
     })
-    for (const s of STARTER_EXERCISES) {
-      if (!haveIds.has(s.id)) {
-        exercises.push(s)
-        changed = true
-      }
-    }
     return changed ? { ...db, exercises } : db
+  })
+}
+
+/**
+ * One-time (idempotent) cleanup of the abandoned pre-seeded catalog. Deletes
+ * every non-custom exercise (`isCustom === false`) that NOTHING references — no
+ * routineItem (archived routine or not), no setLog, no target. Custom exercises
+ * are never touched, and anything with a routine slot or logged history stays,
+ * so History/Insights are unaffected. Done in ONE `update()` so it is a single
+ * persist / sync transaction (mirrors `deleteExercises`); the deleted rows have
+ * no routineItems by construction, so there is nothing to cascade.
+ *
+ * Runs on every boot through the SETTLED path (see bootstrap `runSeed`) so a
+ * signed-in device removes the rows from the ACCOUNT: the store diff emits real
+ * InstantDB `delete` ops, exactly as the Exercises group-delete does. Running it
+ * immediately on the local backend would NOT propagate — the sign-in
+ * reconciliation (`mergeDb`/`adoptRemote`) lets REMOTE win on every id
+ * collision, so a locally-deleted seed row is just re-adopted from the cloud.
+ * Running it once the instant backend is live also self-heals the window where a
+ * stale installed PWA on the old bundle re-appended starters and synced them up.
+ */
+export function cleanupSeededCatalog(): void {
+  update((db) => {
+    const referenced = new Set<string>()
+    for (const it of db.routineItems) referenced.add(it.exerciseId)
+    for (const l of db.setLogs) referenced.add(l.exerciseId)
+    for (const t of db.targets) referenced.add(t.exerciseId)
+    const gone = new Set(
+      db.exercises.filter((e) => !e.isCustom && !referenced.has(e.id)).map((e) => e.id),
+    )
+    if (gone.size === 0) return db
+    return { ...db, exercises: db.exercises.filter((e) => !gone.has(e.id)) }
   })
 }
 

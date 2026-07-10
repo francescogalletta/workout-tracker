@@ -213,9 +213,19 @@ describe('RIR + default rest writes', () => {
     const other = itemsForRoutine(db(), 'r-pull-a')[0].id
     update((d) => setItemRest(d, mine, 120))
     update((d) => setItemRest(d, other, 150))
-    update((d) => setDefaultRest(d, 'r-push-a', 90))
+    // 90 → 100 is a real change, so overrides in this routine wipe.
+    update((d) => setDefaultRest(d, 'r-push-a', 100))
     expect(db().routineItems.find((it) => it.id === mine)!.restSec).toBeNull()
     expect(db().routineItems.find((it) => it.id === other)!.restSec).toBe(150)
+  })
+
+  it('setDefaultRest is a no-op (keeps overrides) when the value is unchanged', () => {
+    seedDemoData(T0)
+    const mine = itemsForRoutine(db(), 'r-push-a')[0].id
+    update((d) => setItemRest(d, mine, 120))
+    // r-push-a already defaults to 90s; re-committing 90 must not wipe.
+    update((d) => setDefaultRest(d, 'r-push-a', 90))
+    expect(db().routineItems.find((it) => it.id === mine)!.restSec).toBe(120)
   })
 
   it('setDefaultTargetRIR writes the routine field and resets item overrides', () => {
@@ -228,6 +238,15 @@ describe('RIR + default rest writes', () => {
     expect(routineById(db(), 'r-push-a')!.defaultTargetRIR).toBe(1)
     expect(db().routineItems.find((it) => it.id === mine)!.targetRIR).toBeNull()
     expect(db().routineItems.find((it) => it.id === other)!.targetRIR).toBe(4)
+  })
+
+  it('setDefaultTargetRIR is a no-op (keeps overrides) when the value is unchanged', () => {
+    seedDemoData(T0)
+    const mine = itemsForRoutine(db(), 'r-push-a')[0].id
+    update((d) => setItemRir(d, mine, 4))
+    // Legacy routines resolve to RIR 2; re-committing 2 must not wipe.
+    update((d) => setDefaultTargetRIR(d, 'r-push-a', 2))
+    expect(db().routineItems.find((it) => it.id === mine)!.targetRIR).toBe(4)
   })
 
   it('setItemRir(null) reverts to the routine default', () => {
