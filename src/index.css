@@ -4,15 +4,15 @@
 :root {
   --bg: #000000;
   --sur: #0a0a0a;
-  --bd: #222222;
-  --bds: #333333;
+  --bd: #2a2a2a;
+  --bds: #404040;
   --tx: #f2f2f2;
-  --mut: #6b6b6b;
-  --dim: #4a4a4a;
-  --sec: #9a9a9a;
+  --mut: #8c8c8c;
+  --dim: #6e6e6e;
+  --sec: #b4b4b4;
   --acc: #c8ff2e;
   --onacc: #000000;
-  --rzn: #6b6b6b;
+  --rzn: #8c8c8c;
   --rs: 4px;
   --rl: 6px;
   --rowbg: transparent;
@@ -20,9 +20,9 @@
   --wubg: transparent;
   --wubd: #161616;
   --stepbg: transparent;
-  --stepbd: #333333;
+  --stepbd: #404040;
   --cardbg: #0a0a0a;
-  --cardbd: #333333;
+  --cardbd: #404040;
   --numc: #ffffff;
   /* Background behind History's set-table edge fades. Follows --bg so the
      gradient dissolves into the real page colour in BOTH themes (Ember's bg
@@ -55,11 +55,11 @@
 [data-theme='ember'] {
   --bg: #17120e;
   --sur: #221b13;
-  --bd: #2e261d;
+  --bd: #382e22;
   --bds: #4a3d2c;
   --tx: #f5ede3;
-  --mut: #9a8b78;
-  --dim: #6e6153;
+  --mut: #b5a48d;
+  --dim: #8c7c66;
   --sec: #c9b79e;
   --acc: #ff6a2b;
   --onacc: #1a0f05;
